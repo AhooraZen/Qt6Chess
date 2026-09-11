@@ -1,6 +1,6 @@
 # Maintainer: AhooraZen <https://github.com/AhooraZen>
 pkgname=qt6chess
-pkgver=1.0.1
+pkgver=1.0.2
 pkgrel=1
 
 pkgdesc="Modern high-performance native Qt6 chess application with Stockfish 17.1 and ANSI TUI"

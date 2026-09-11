@@ -45,20 +45,25 @@ static void disableRawMode()
     }
 }
 
-static void enableRawMode()
+static void setRawMode()
 {
-    if (tcgetattr(STDIN_FILENO, &s_origTermios) == -1) return;
-
     struct termios raw = s_origTermios;
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    raw.c_oflag &= ~(OPOST);
+    raw.c_oflag |= (OPOST | ONLCR); // Keep OPOST so \n translates to \r\n without staircasing
     raw.c_cflag |= (CS8);
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 1; // 100ms read timeout
 
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) return;
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
     s_rawModeActive = true;
+}
+
+static void enableRawMode()
+{
+    if (tcgetattr(STDIN_FILENO, &s_origTermios) == -1) return;
+
+    setRawMode();
 
     std::atexit(disableRawMode);
 
@@ -413,7 +418,7 @@ int run(int elo, int playerColor)
     }
 
     auto getSquareAtScreen = [&](int screenX, int screenY) -> int {
-        int boardLeft = 5;
+        int boardLeft = 6;
         int boardTop = 4;
         int relX = screenX - boardLeft;
         int relY = screenY - boardTop;
@@ -454,36 +459,36 @@ int run(int elo, int playerColor)
         }
 
         // Header Title
-        out += "\033[1;36m ♞ Qt6Chess Terminal TUI \033[0m\033[90m│ C++20 SceneGraph & ANSI SGR Edition\033[0m\n";
-        out += "\033[90m" + repeatStr("─", std::min(termCols, 78)) + "\033[0m\n";
+        out += "\033[1;36m ♞ Qt6Chess Terminal TUI \033[0m\033[90m│ C++20 SceneGraph & ANSI SGR Edition\033[0m\033[K\r\n";
+        out += "\033[90m" + repeatStr("─", std::min(termCols, 78)) + "\033[0m\033[K\r\n";
 
         // If Help Modal is open
         if (showHelp) {
-            out += "\n";
-            out += "\033[1;33m  ┌───────────────────────── Qt6Chess TUI Help ─────────────────────────┐\033[0m\n";
-            out += "  │                                                                     │\n";
-            out += "  │  \033[1;32mMouse Controls:\033[0m                                                    │\n";
-            out += "  │    • \033[1mLeft Click on Piece\033[0m  : Select piece and view legal targets        │\n";
-            out += "  │    • \033[1mLeft Click on Target\033[0m : Make the chess move                       │\n";
-            out += "  │    • \033[1mLeft Click Elsewhere\033[0m: Deselect / Cancel move                     │\n";
-            out += "  │                                                                     │\n";
-            out += "  │  \033[1;32mKeyboard Controls:\033[0m                                                 │\n";
-            out += "  │    • \033[1mArrow Keys / WASD / HJKL\033[0m : Move yellow board cursor              │\n";
-            out += "  │    • \033[1mSpace / Enter\033[0m            : Select piece or execute target move   │\n";
-            out += "  │    • \033[1mu\033[0m                        : Undo last move(s)                     │\n";
-            out += "  │    • \033[1mf\033[0m                        : Flip board orientation (White/Black)  │\n";
-            out += "  │    • \033[1me\033[0m                        : Query Stockfish evaluation & bestmove │\n";
-            out += "  │    • \033[1m/\033[0m                        : Enter SAN move directly (e.g. 'Nf3')  │\n";
-            out += "  │    • \033[1mr / n\033[0m                    : Restart / New Game                    │\n";
-            out += "  │    • \033[1mh / ?\033[0m                    : Toggle this Help popup                │\n";
-            out += "  │    • \033[1mq / Esc\033[0m                  : Quit Qt6Chess                         │\n";
-            out += "  │                                                                     │\n";
-            out += "  │  \033[1;32mPacman / Arch Note:\033[0m                                                │\n";
-            out += "  │    Stockfish is optional! If installed, AI play and live eval       │\n";
-            out += "  │    activate automatically. Otherwise, Pass & Play mode works!       │\n";
-            out += "  │                                                                     │\n";
-            out += "\033[1;33m  └────────────────────── [Press any key to close] ─────────────────────┘\033[0m\n";
-            for (int i = 0; i < 6; ++i) out += "\n";
+            out += "\033[K\r\n";
+            out += "\033[1;33m  ┌───────────────────────── Qt6Chess TUI Help ─────────────────────────┐\033[0m\033[K\r\n";
+            out += "  │                                                                     │\033[K\r\n";
+            out += "  │  \033[1;32mMouse Controls:\033[0m                                                    │\033[K\r\n";
+            out += "  │    • \033[1mLeft Click on Piece\033[0m  : Select piece and view legal targets        │\033[K\r\n";
+            out += "  │    • \033[1mLeft Click on Target\033[0m : Make the chess move                       │\033[K\r\n";
+            out += "  │    • \033[1mLeft Click Elsewhere\033[0m: Deselect / Cancel move                     │\033[K\r\n";
+            out += "  │                                                                     │\033[K\r\n";
+            out += "  │  \033[1;32mKeyboard Controls:\033[0m                                                 │\033[K\r\n";
+            out += "  │    • \033[1mArrow Keys / WASD / HJKL\033[0m : Move yellow board cursor              │\033[K\r\n";
+            out += "  │    • \033[1mSpace / Enter\033[0m            : Select piece or execute target move   │\033[K\r\n";
+            out += "  │    • \033[1mu\033[0m                        : Undo last move(s)                     │\033[K\r\n";
+            out += "  │    • \033[1mf\033[0m                        : Flip board orientation (White/Black)  │\033[K\r\n";
+            out += "  │    • \033[1me\033[0m                        : Query Stockfish evaluation & bestmove │\033[K\r\n";
+            out += "  │    • \033[1m/\033[0m                        : Enter SAN move directly (e.g. 'Nf3')  │\033[K\r\n";
+            out += "  │    • \033[1mr / n\033[0m                    : Restart / New Game                    │\033[K\r\n";
+            out += "  │    • \033[1mh / ?\033[0m                    : Toggle this Help popup                │\033[K\r\n";
+            out += "  │    • \033[1mq / Esc\033[0m                  : Quit Qt6Chess                         │\033[K\r\n";
+            out += "  │                                                                     │\033[K\r\n";
+            out += "  │  \033[1;32mPacman / Arch Note:\033[0m                                                │\033[K\r\n";
+            out += "  │    Stockfish is optional! If installed, AI play and live eval       │\033[K\r\n";
+            out += "  │    activate automatically. Otherwise, Pass & Play mode works!       │\033[K\r\n";
+            out += "  │                                                                     │\033[K\r\n";
+            out += "\033[1;33m  └────────────────────── [Press any key to close] ─────────────────────┘\033[0m\033[K\r\n";
+            out += "\033[J";
             std::cout << out << std::flush;
 
             InputEvent helpEv = readInputEvent();
@@ -598,7 +603,7 @@ int run(int elo, int playerColor)
         }
         out += "   ";
         if (!sideLines.empty()) out += sideLines[0];
-        out += "\n";
+        out += "\033[K\r\n";
 
         // Board rendering: 8 ranks, 2 lines per rank = 16 lines
         for (int displayRank = 0; displayRank < 8; ++displayRank) {
@@ -707,7 +712,7 @@ int run(int elo, int playerColor)
                 if (sideIdx < static_cast<int>(sideLines.size())) {
                     out += "  " + sideLines[sideIdx];
                 }
-                out += "\n";
+                out += "\033[K\r\n";
             }
         }
 
@@ -720,12 +725,13 @@ int run(int elo, int playerColor)
             out += fileChar;
             out += "  ";
         }
-        out += "\n";
+        out += "\033[K\r\n";
 
         // Status message bar
-        out += "\033[90m" + repeatStr("─", std::min(termCols, 78)) + "\033[0m\n";
-        out += " \033[1mStatus:\033[0m " + statusMessage + "\n";
-        out += " \033[90m[🖱 Click/Enter] Move  [Arrows/WASD] Cursor  [u] Undo  [f] Flip  [e] Eval  [/] SAN  [?] Help  [q] Quit\033[0m\n";
+        out += "\033[90m" + repeatStr("─", std::min(termCols, 78)) + "\033[0m\033[K\r\n";
+        out += " \033[1mStatus:\033[0m " + statusMessage + "\033[K\r\n";
+        out += " \033[90m[🖱 Click/Enter] Move  [Arrows/WASD] Cursor  [u] Undo  [f] Flip  [e] Eval  [/] SAN  [?] Help  [q] Quit\033[0m\033[K\r\n";
+        out += "\033[J";
 
         // Flush buffer
         std::cout << out << std::flush;
@@ -755,7 +761,7 @@ int run(int elo, int playerColor)
 
         if (!isHumanTurn && sfAvailable && result == chess::GameResult::NONE) {
             statusMessage = "\033[1;33mStockfish is thinking...\033[0m";
-            std::cout << "\033[H\033[" << (termRows - 1) << ";1H \033[1mStatus:\033[0m " << statusMessage << std::flush;
+            std::cout << "\033[22;1H \033[1mStatus:\033[0m " << statusMessage << "\033[K" << std::flush;
 
             EvalInfo engineMove = queryStockfishEval(stockfish, board, 1000);
             chess::Move finalMove = chess::Move::NO_MOVE;
@@ -863,7 +869,7 @@ int run(int elo, int playerColor)
         if (ev.type == KEY_CHAR && (ev.ch == 'e' || ev.ch == 'E')) {
             if (sfAvailable) {
                 statusMessage = "\033[1;33mEvaluating position...\033[0m";
-                std::cout << "\033[H\033[" << (termRows - 1) << ";1H \033[1mStatus:\033[0m " << statusMessage << std::flush;
+                std::cout << "\033[22;1H \033[1mStatus:\033[0m " << statusMessage << "\033[K" << std::flush;
                 currentEval = queryStockfishEval(stockfish, board, 1200);
                 statusMessage = "Evaluated! Best move: \033[1;36m" + currentEval.bestMoveStr + "\033[0m";
             } else {
@@ -876,7 +882,7 @@ int run(int elo, int playerColor)
         if (ev.type == KEY_CHAR && (ev.ch == '/' || ev.ch == ':')) {
             // Restore normal cursor for typing
             std::cout << "\033[?25h";
-            std::cout << "\033[" << termRows << ";1H\033[2K \033[1;36mSAN/Command > \033[0m" << std::flush;
+            std::cout << "\033[22;1H\033[K \033[1;36mSAN/Command > \033[0m" << std::flush;
 
             // Switch to canonical reading for single line
             struct termios textTermios = s_origTermios;
@@ -886,14 +892,7 @@ int run(int elo, int playerColor)
             std::getline(std::cin, cmd);
 
             // Re-enable raw mode
-            struct termios raw = s_origTermios;
-            raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-            raw.c_oflag &= ~(OPOST);
-            raw.c_cflag |= (CS8);
-            raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-            raw.c_cc[VMIN] = 0;
-            raw.c_cc[VTIME] = 1;
-            tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+            setRawMode();
             std::cout << "\033[?25l";
 
             while (!cmd.empty() && (cmd.back() == '\r' || cmd.back() == ' ')) cmd.pop_back();
