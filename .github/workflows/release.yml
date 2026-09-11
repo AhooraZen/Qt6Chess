@@ -83,16 +83,26 @@ jobs:
           windeployqt --qmldir qml dist\Qt6Chess.exe
           Compress-Archive -Path dist\* -DestinationPath qt6chess-windows-x64.zip
 
-      - name: Upload Windows workflow artifact
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress
+
+      - name: Build Windows Installer (Setup.exe)
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
+          Move-Item installer\Qt6Chess-Setup-x64.exe .
+
+      - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-x64-package
-          path: qt6chess-windows-x64.zip
+          name: windows-x64-binaries
+          path: |
+            qt6chess-windows-x64.zip
+            Qt6Chess-Setup-x64.exe
 
-      - name: Upload Windows zip to Release
+      - name: Upload Windows binaries to Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if ($env:GITHUB_REF_NAME -match "^v") {
-            gh release upload $env:GITHUB_REF_NAME qt6chess-windows-x64.zip --clobber
+            gh release upload $env:GITHUB_REF_NAME qt6chess-windows-x64.zip Qt6Chess-Setup-x64.exe --clobber
           }

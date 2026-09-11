@@ -13,7 +13,9 @@ Zero Electron bloat, starts in 50 milliseconds, and eats around 30MB of RAM.
 
 ---
 
-![Qt6Chess Screenshot](docs/screenshots/gui.png)
+<p align="center">
+  <img src="docs/screenshots/gui_demo.gif" alt="Qt6Chess GUI Demo" width="720"/>
+</p>
 
 ---
 
@@ -61,6 +63,11 @@ Pre-built packages are compiled natively inside official Arch Linux containers o
 sudo pacman -U https://github.com/AhooraZen/Qt6Chess/releases/download/v1.0.3/qt6chess-1.0.3-1-x86_64.pkg.tar.zst
 ```
 
+### Windows (Installer & Portable)
+Pre-built 64-bit binaries are built with MSVC and bundled with Qt 6.8 on every release:
+- **Installer**: Download **`Qt6Chess-Setup-x64.exe`** from [Releases](https://github.com/AhooraZen/Qt6Chess/releases/latest) and run the setup wizard.
+- **Portable ZIP**: Download **`qt6chess-windows-x64.zip`**, extract anywhere, and run `Qt6Chess.exe`.
+
 ### Build from Source
 Requires GCC/Clang with C++20 support, CMake 3.25+, Ninja, and Qt 6.8 (Core, Gui, Quick, QuickControls2, Svg, Multimedia).
 
@@ -98,6 +105,10 @@ Launch with the `--cli` flag:
 ```bash
 qt6chess --cli
 ```
+
+<p align="center">
+  <img src="docs/screenshots/tui_demo.gif" alt="Qt6Chess Terminal TUI Demo" width="720"/>
+</p>
 
 ### Controls in TUI
 | Key / Input | Action |
