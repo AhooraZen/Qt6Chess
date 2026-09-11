@@ -1,4 +1,4 @@
-name: Arch Linux Release Build
+name: Release Builds (Arch Linux & Windows)
 
 on:
   push:
@@ -38,7 +38,7 @@ jobs:
             '
           ls -lh *.pkg.tar.zst
 
-      - name: Upload workflow artifact
+      - name: Upload Arch workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: arch-linux-package
@@ -52,3 +52,47 @@ jobs:
           if [ -n "$TAG" ] && [[ "$TAG" =~ ^v ]]; then
             gh release upload "$TAG" *.pkg.tar.zst --clobber
           fi
+
+  build-windows-package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6.8
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.8.0'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2022_64'
+          modules: 'qtmultimedia'
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build with CMake & Ninja
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+
+      - name: Package with windeployqt
+        run: |
+          mkdir dist
+          Copy-Item build\bin\Qt6Chess.exe dist\
+          windeployqt --qmldir qml dist\Qt6Chess.exe
+          Compress-Archive -Path dist\* -DestinationPath qt6chess-windows-x64.zip
+
+      - name: Upload Windows workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-package
+          path: qt6chess-windows-x64.zip
+
+      - name: Upload Windows zip to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ($env:GITHUB_REF_NAME -match "^v") {
+            gh release upload $env:GITHUB_REF_NAME qt6chess-windows-x64.zip --clobber
+          }
