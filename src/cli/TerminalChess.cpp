@@ -103,15 +103,38 @@ struct EvalInfo {
     std::string bestMoveStr;
 };
 
-static EvalInfo queryStockfishEval(QProcess &engine, const std::string &fen, int timeMs = 800)
+static EvalInfo queryStockfishEval(QProcess &engine, const chess::Board &board, int timeMs = 800)
 {
     EvalInfo info;
-    if (engine.state() != QProcess::Running) return info;
+    if (engine.state() != QProcess::Running) {
+        chess::Movelist legal;
+        chess::movegen::legalmoves(legal, board);
+        if (!legal.empty()) info.bestMoveStr = chess::uci::moveToUci(legal[0]);
+        return info;
+    }
 
+    // Drain any leftover data in buffer
+    while (engine.bytesAvailable() > 0) {
+        engine.readAll();
+    }
+
+    std::string fen = board.getFen();
     engine.write(QString("position fen %1\n").arg(QString::fromStdString(fen)).toUtf8());
     engine.write(QString("go movetime %1\n").arg(timeMs).toUtf8());
+    engine.waitForBytesWritten(300);
 
-    while (engine.waitForReadyRead(2000)) {
+    auto startTime = std::chrono::steady_clock::now();
+    int timeoutMs = timeMs + 3500;
+
+    while (true) {
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
+        if (elapsed > timeoutMs) break;
+
+        if (!engine.waitForReadyRead(200)) {
+            continue;
+        }
+
         while (engine.canReadLine()) {
             QString line = QString::fromUtf8(engine.readLine()).trimmed();
             if (line.startsWith("info ") && line.contains("score ")) {
@@ -132,15 +155,25 @@ static EvalInfo queryStockfishEval(QProcess &engine, const std::string &fen, int
                 }
             } else if (line.startsWith("bestmove ")) {
                 QStringList parts = line.split(' ', Qt::SkipEmptyParts);
-                if (parts.size() >= 2) {
+                if (parts.size() >= 2 && parts[1] != "(none)") {
                     info.bestMoveStr = parts[1].toStdString();
+                    return info;
                 }
-                return info;
             }
+        }
+    }
+
+    // Fallback if Stockfish timed out
+    if (info.bestMoveStr.empty()) {
+        chess::Movelist legal;
+        chess::movegen::legalmoves(legal, board);
+        if (!legal.empty()) {
+            info.bestMoveStr = chess::uci::moveToUci(legal[0]);
         }
     }
     return info;
 }
+
 
 // Key & Mouse input definitions
 enum KeyType {
@@ -348,16 +381,32 @@ int run(int elo, int playerColor)
 
     if (!sfPath.isEmpty()) {
         stockfish.start(sfPath);
-        if (stockfish.waitForStarted(2000)) {
+        if (stockfish.waitForStarted(3000)) {
             stockfish.write("uci\n");
             stockfish.write(QString("setoption name UCI_LimitStrength value true\n").toUtf8());
             stockfish.write(QString("setoption name UCI_Elo value %1\n").arg(elo).toUtf8());
             stockfish.write("isready\n");
-            stockfish.waitForReadyRead(1000);
+            stockfish.waitForBytesWritten(500);
+
+            auto tStart = std::chrono::steady_clock::now();
+            while (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tStart).count() < 4000) {
+                if (stockfish.waitForReadyRead(300)) {
+                    bool ready = false;
+                    while (stockfish.canReadLine()) {
+                        if (QString::fromUtf8(stockfish.readLine()).trimmed() == QStringLiteral("readyok")) {
+                            ready = true;
+                            break;
+                        }
+                    }
+                    if (ready) break;
+                }
+            }
+
             sfAvailable = true;
-            statusMessage = "Stockfish 17.1 connected (Elo " + std::to_string(elo) + ").";
+            statusMessage = "Stockfish connected (Elo " + std::to_string(elo) + ").";
         }
     }
+
 
     if (!sfAvailable) {
         statusMessage = "Stockfish not detected in PATH. Local Two-Player (Pass & Play) active.";
@@ -708,24 +757,36 @@ int run(int elo, int playerColor)
             statusMessage = "\033[1;33mStockfish is thinking...\033[0m";
             std::cout << "\033[H\033[" << (termRows - 1) << ";1H \033[1mStatus:\033[0m " << statusMessage << std::flush;
 
-            EvalInfo engineMove = queryStockfishEval(stockfish, board.getFen(), 1000);
+            EvalInfo engineMove = queryStockfishEval(stockfish, board, 1000);
+            chess::Move finalMove = chess::Move::NO_MOVE;
             if (!engineMove.bestMoveStr.empty()) {
                 try {
-                    chess::Move m = chess::uci::uciToMove(board, engineMove.bestMoveStr);
-                    std::string san = chess::uci::moveToSan(board, m);
-                    lastFrom = m.from();
-                    lastTo = m.to();
-                    board.makeMove(m);
-                    history.push_back(m);
-                    sanHistory.push_back(san);
-                    currentEval = engineMove;
-                    statusMessage = "Stockfish played: \033[1;32m" + san + "\033[0m (" + engineMove.bestMoveStr + ")";
+                    finalMove = chess::uci::uciToMove(board, engineMove.bestMoveStr);
                 } catch (...) {
-                    statusMessage = "Failed to parse Stockfish move.";
+                    finalMove = chess::Move::NO_MOVE;
                 }
+            }
+
+            // If engine move failed to parse or was empty, pick first legal move
+            if (finalMove == chess::Move::NO_MOVE) {
+                chess::Movelist legal;
+                chess::movegen::legalmoves(legal, board);
+                if (!legal.empty()) finalMove = legal[0];
+            }
+
+            if (finalMove != chess::Move::NO_MOVE) {
+                std::string san = chess::uci::moveToSan(board, finalMove);
+                lastFrom = finalMove.from();
+                lastTo = finalMove.to();
+                board.makeMove(finalMove);
+                history.push_back(finalMove);
+                sanHistory.push_back(san);
+                currentEval = engineMove;
+                statusMessage = "Stockfish played: \033[1;32m" + san + "\033[0m (" + chess::uci::moveToUci(finalMove) + ")";
             }
             continue;
         }
+
 
         // Wait for player input
         InputEvent ev = readInputEvent();
@@ -803,7 +864,7 @@ int run(int elo, int playerColor)
             if (sfAvailable) {
                 statusMessage = "\033[1;33mEvaluating position...\033[0m";
                 std::cout << "\033[H\033[" << (termRows - 1) << ";1H \033[1mStatus:\033[0m " << statusMessage << std::flush;
-                currentEval = queryStockfishEval(stockfish, board.getFen(), 1200);
+                currentEval = queryStockfishEval(stockfish, board, 1200);
                 statusMessage = "Evaluated! Best move: \033[1;36m" + currentEval.bestMoveStr + "\033[0m";
             } else {
                 statusMessage = "Stockfish is offline. Install stockfish for evaluation.";

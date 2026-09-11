@@ -308,6 +308,11 @@ bool GameController::tryMove(int fromSq, int toSq, const QString &promoChar)
     updateBoardView();
     updateEnginePosition();
 
+    if (!m_isGameOver) {
+        m_statusText = (m_board.sideToMove() == chess::Color::WHITE) ? QStringLiteral("White to move") : QStringLiteral("Black to move");
+        emit statusChanged();
+    }
+
     if (!m_isGameOver && m_gameMode == ModePlayerVsAi) {
         triggerAiMoveIfNeeded();
     }
@@ -329,9 +334,23 @@ void GameController::triggerAiMoveIfNeeded()
         m_statusText = QStringLiteral("Stockfish is thinking...");
         emit statusChanged();
 
-        int moveTime = (m_aiElo < 1200) ? 600 : (m_aiElo < 1800) ? 1200 : 2000;
-        int maxDepth = (m_aiElo < 1200) ? 8 : (m_aiElo < 1800) ? 14 : 22;
+        // Ensure engine has current position before searching
+        updateEnginePosition();
+
+        int moveTime = (m_aiElo < 1200) ? 600 : (m_aiElo < 1800) ? 1000 : 1500;
+        int maxDepth = (m_aiElo < 1200) ? 8 : (m_aiElo < 1800) ? 14 : 20;
         m_uci->searchBestMove(moveTime, maxDepth);
+
+        // Safety fallback: if engine does not return within moveTime + 3000ms, pick legal move
+        QTimer::singleShot(moveTime + 3000, this, [this]() {
+            if (m_isThinking && !m_isGameOver) {
+                chess::Movelist legal;
+                chess::movegen::legalmoves(legal, m_board);
+                if (!legal.empty()) {
+                    onAiBestMoveFound(QString::fromStdString(chess::uci::moveToUci(legal[0])), QString());
+                }
+            }
+        });
     }
 }
 
@@ -341,7 +360,8 @@ void GameController::onAiBestMoveFound(const QString &bestMove, const QString &)
     m_isThinking = false;
     emit thinkingChanged();
 
-    if (bestMove.length() >= 4) {
+    bool moveExecuted = false;
+    if (bestMove.length() >= 4 && bestMove != QStringLiteral("(none)")) {
         int fromFile = bestMove[0].toLatin1() - 'a';
         int fromRank = bestMove[1].toLatin1() - '1';
         int toFile = bestMove[2].toLatin1() - 'a';
@@ -350,9 +370,19 @@ void GameController::onAiBestMoveFound(const QString &bestMove, const QString &)
         int toSq = toRank * 8 + toFile;
         QString promo = (bestMove.length() >= 5) ? bestMove.mid(4, 1) : QStringLiteral("q");
 
-        tryMove(fromSq, toSq, promo);
+        moveExecuted = tryMove(fromSq, toSq, promo);
+    }
+
+    if (!moveExecuted) {
+        chess::Movelist legal;
+        chess::movegen::legalmoves(legal, m_board);
+        if (!legal.empty()) {
+            chess::Move fallback = legal[0];
+            tryMove(fallback.from().index(), fallback.to().index(), QStringLiteral("q"));
+        }
     }
 }
+
 
 void GameController::updateEnginePosition()
 {

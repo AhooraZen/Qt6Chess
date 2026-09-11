@@ -139,12 +139,14 @@ void UciController::stopAnalysis()
 
 void UciController::searchBestMove(int moveTimeMs, int depthLimit)
 {
+    Q_UNUSED(depthLimit);
     if (!isRunning()) {
         if (!startEngine()) return;
     }
     sendCommand(QStringLiteral("stop"));
-    sendCommand(QString("go movetime %1 depth %2").arg(moveTimeMs).arg(depthLimit));
+    sendCommand(QString("go movetime %1").arg(moveTimeMs));
 }
+
 
 void UciController::onReadyReadStandardOutput()
 {
