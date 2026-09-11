@@ -50,8 +50,13 @@ bool UciController::startEngine(const QString &customPath)
         stopEngine();
 
     QString enginePath = customPath.isEmpty() ? findDefaultEnginePath() : customPath;
+    if (enginePath.isEmpty() || !QFile::exists(enginePath)) {
+        return false;
+    }
+
+    m_process->setProcessChannelMode(QProcess::MergedChannels);
     m_process->start(enginePath);
-    if (!m_process->waitForStarted(3000)) {
+    if (!m_process->waitForStarted(1500)) {
         qWarning() << "Failed to start UCI engine at:" << enginePath;
         return false;
     }
@@ -108,11 +113,18 @@ void UciController::setElo(int elo)
 
 void UciController::setPosition(const QString &fen, const QStringList &moves)
 {
+    m_lines.clear();
+    m_candidateLines.clear();
+    emit candidateLinesChanged();
+
+    QString cleanFen = fen.trimmed();
+    cleanFen.remove(QLatin1Char('\r')).remove(QLatin1Char('\n'));
+
     QString cmd;
-    if (fen.isEmpty() || fen == QStringLiteral("startpos")) {
+    if (cleanFen.isEmpty() || cleanFen == QStringLiteral("startpos")) {
         cmd = QStringLiteral("position startpos");
     } else {
-        cmd = QString("position fen %1").arg(fen);
+        cmd = QString("position fen %1").arg(cleanFen);
     }
 
     if (!moves.isEmpty()) {
@@ -151,7 +163,6 @@ void UciController::stopAnalysis()
 
 void UciController::searchBestMove(int moveTimeMs, int depthLimit)
 {
-    Q_UNUSED(depthLimit);
     if (!isRunning()) {
         if (!startEngine()) return;
     }
@@ -159,7 +170,11 @@ void UciController::searchBestMove(int moveTimeMs, int depthLimit)
     if (!m_currentPositionCmd.isEmpty()) {
         sendCommand(m_currentPositionCmd);
     }
-    sendCommand(QString("go movetime %1").arg(moveTimeMs));
+    if (depthLimit > 0) {
+        sendCommand(QString("go movetime %1 depth %2").arg(moveTimeMs).arg(depthLimit));
+    } else {
+        sendCommand(QString("go movetime %1").arg(moveTimeMs));
+    }
 }
 
 
@@ -233,22 +248,59 @@ void UciController::parseLine(const QString &line)
         QString fromSq = firstMove.length() >= 2 ? firstMove.left(2) : "";
         QString toSq = firstMove.length() >= 4 ? firstMove.mid(2, 2) : "";
 
+        double normalizedEval = m_isWhiteToMove ? cpScore : -cpScore;
+        int normalizedMate = m_isWhiteToMove ? mateScore : -mateScore;
+
         if (pvRank == 1) {
             m_depth = depthVal;
             m_nps = npsVal;
-            m_currentEval = cpScore;
+            m_currentEval = normalizedEval;
             m_isMate = hasMate;
-            m_mateIn = mateScore;
-
-            emit depthChanged();
-            emit npsChanged();
-            emit currentEvalChanged();
-            emit primaryArrowChanged(fromSq, toSq);
-        } else if (pvRank == 2) {
-            emit secondaryArrowChanged(fromSq, toSq);
+            m_mateIn = normalizedMate;
         }
 
-        emit lineUpdated(pvRank, cpScore, hasMate, mateScore, depthVal, pvStr, fromSq, toSq);
+        EngineLine &lineData = m_lines[pvRank];
+        lineData.multiPv = pvRank;
+        lineData.depth = depthVal;
+        lineData.evalCp = normalizedEval;
+        lineData.mateIn = normalizedMate;
+        lineData.isMate = hasMate;
+        lineData.nps = npsVal;
+        lineData.pv = pvStr;
+        lineData.bestMove = firstMove;
+        lineData.fromSquare = fromSq;
+        lineData.toSquare = toSq;
+
+        bool shouldEmit = !m_infoTimer.isValid() || m_infoTimer.elapsed() >= 50;
+        if (shouldEmit) {
+            m_infoTimer.restart();
+
+            if (pvRank == 1) {
+                emit depthChanged();
+                emit npsChanged();
+                emit currentEvalChanged();
+                emit primaryArrowChanged(fromSq, toSq);
+            } else if (pvRank == 2) {
+                emit secondaryArrowChanged(fromSq, toSq);
+            }
+
+            emit lineUpdated(pvRank, normalizedEval, hasMate, normalizedMate, depthVal, pvStr, fromSq, toSq);
+
+            QVariantList cLines;
+            for (auto it = m_lines.begin(); it != m_lines.end(); ++it) {
+                QVariantMap m;
+                m[QStringLiteral("rank")] = it.key();
+                m[QStringLiteral("depth")] = it.value().depth;
+                m[QStringLiteral("eval")] = it.value().evalCp;
+                m[QStringLiteral("isMate")] = it.value().isMate;
+                m[QStringLiteral("mateIn")] = it.value().mateIn;
+                m[QStringLiteral("pv")] = it.value().pv;
+                m[QStringLiteral("bestMove")] = it.value().bestMove;
+                cLines.append(m);
+            }
+            m_candidateLines = cLines;
+            emit candidateLinesChanged();
+        }
     }
 }
 

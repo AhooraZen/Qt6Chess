@@ -53,7 +53,7 @@ Popup {
                 text: "Analyze Position"
                 onClicked: {
                     if (root.gameController) {
-                        root.gameController.gameMode = 2; // ModeAnalysis
+                        root.gameController.switchToAnalysisMode();
                     }
                     root.close();
                 }

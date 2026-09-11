@@ -6,10 +6,18 @@ Item {
     id: root
     property var gameController: null
     property bool flipped: gameController ? gameController.flipped : false
+    property int boardTheme: 0 // 0: Emerald, 1: Wood, 2: Slate, 3: Midnight
 
-    // Color theme
-    property color lightSquareColor: "#eeeed2"
-    property color darkSquareColor: "#769656"
+    // Color theme palettes
+    readonly property var themePalettes: [
+        { light: "#eeeed2", dark: "#769656" }, // Emerald
+        { light: "#f0d9b5", dark: "#b58863" }, // Wood
+        { light: "#dee3e6", dark: "#8ca2ad" }, // Slate
+        { light: "#c4cfa1", dark: "#4d6a79" }  // Midnight
+    ]
+
+    property color lightSquareColor: themePalettes[boardTheme] ? themePalettes[boardTheme].light : "#eeeed2"
+    property color darkSquareColor: themePalettes[boardTheme] ? themePalettes[boardTheme].dark : "#769656"
     property color selectedColor: "#baca2b"
     property color lastMoveColor: "#f5f682"
     property color checkColor: "#e05353"
@@ -24,49 +32,46 @@ Item {
         color: "#262522"
         radius: 4
 
-        // 8x8 Board Grid
-        Grid {
-            id: grid
+        // 8x8 Board Area
+        Item {
+            id: boardArea
             anchors.fill: parent
             anchors.margins: 4
-            rows: 8
-            columns: 8
 
             Repeater {
-                model: 64
+                id: boardRepeater
+                model: root.gameController ? root.gameController.boardModel : null
 
                 delegate: Rectangle {
                     id: squareItem
                     required property int index
+                    required property int squareIndex
+                    required property string squareName
+                    required property string pieceCode
+                    required property bool isLightSquare
+                    required property bool isSelected
+                    required property bool isLegalTarget
+                    required property bool isLastMove
+                    required property bool isInCheck
 
-                    width: (grid.width) / 8
-                    height: (grid.height) / 8
+                    // Board ranks & files
+                    readonly property int rank: Math.floor(squareIndex / 8)
+                    readonly property int file: squareIndex % 8
 
                     // Coordinate mapping based on flip
-                    readonly property int row: Math.floor(index / 8)
-                    readonly property int col: index % 8
-                    readonly property int rank: root.flipped ? row : (7 - row)
-                    readonly property int file: root.flipped ? (7 - col) : col
-                    readonly property int sqIndex: rank * 8 + file
+                    readonly property int displayCol: root.flipped ? (7 - file) : file
+                    readonly property int displayRow: root.flipped ? rank : (7 - rank)
 
-                    // Data from model
-                    readonly property int rev: root.gameController ? root.gameController.boardModel.revision : 0
-                    readonly property var sqData: {
-                        var _ = rev;
-                        return root.gameController ? root.gameController.boardModel.getSquareData(sqIndex) : null;
-                    }
-                    readonly property bool isLight: ((file + rank) % 2 !== 0)
-                    readonly property bool isSelected: sqData ? sqData.isSelected : false
-                    readonly property bool isLastMove: sqData ? sqData.isLastMove : false
-                    readonly property bool isInCheck: sqData ? sqData.isInCheck : false
-                    readonly property bool isLegalTarget: sqData ? sqData.isLegalTarget : false
-                    readonly property string pieceCode: sqData ? sqData.pieceCode : ""
+                    width: boardArea.width / 8
+                    height: boardArea.height / 8
+                    x: displayCol * width
+                    y: displayRow * height
 
                     color: {
                         if (isInCheck) return root.checkColor;
                         if (isSelected) return root.selectedColor;
                         if (isLastMove) return root.lastMoveColor;
-                        return isLight ? root.lightSquareColor : root.darkSquareColor;
+                        return isLightSquare ? root.lightSquareColor : root.darkSquareColor;
                     }
 
                     // Rank & File coordinate labels
@@ -74,10 +79,10 @@ Item {
                         anchors.left: parent.left
                         anchors.top: parent.top
                         anchors.margins: 2
-                        text: (file === (root.flipped ? 7 : 0)) ? (rank + 1).toString() : ""
+                        text: (displayCol === 0) ? (rank + 1).toString() : ""
                         font.pixelSize: Math.max(9, parent.width * 0.18)
                         font.bold: true
-                        color: squareItem.isLight ? root.darkSquareColor : root.lightSquareColor
+                        color: squareItem.isLightSquare ? root.darkSquareColor : root.lightSquareColor
                         visible: text.length > 0
                     }
 
@@ -85,10 +90,10 @@ Item {
                         anchors.right: parent.right
                         anchors.bottom: parent.bottom
                         anchors.margins: 2
-                        text: (rank === (root.flipped ? 7 : 0)) ? String.fromCharCode(97 + file) : ""
+                        text: (displayRow === 7) ? String.fromCharCode(97 + file) : ""
                         font.pixelSize: Math.max(9, parent.width * 0.18)
                         font.bold: true
-                        color: squareItem.isLight ? root.darkSquareColor : root.lightSquareColor
+                        color: squareItem.isLightSquare ? root.darkSquareColor : root.lightSquareColor
                         visible: text.length > 0
                     }
 
@@ -130,20 +135,20 @@ Item {
                         anchors.fill: parent
                         onClicked: {
                             if (root.gameController) {
-                                root.gameController.selectSquare(sqIndex);
+                                root.gameController.selectSquare(squareIndex);
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Arrow Overlay for tactical lines & best moves
-        ArrowOverlay {
-            id: arrows
-            anchors.fill: grid
-            gameController: root.gameController
-            flipped: root.flipped
+            // Arrow Overlay for tactical lines & best moves
+            ArrowOverlay {
+                id: arrows
+                anchors.fill: parent
+                gameController: root.gameController
+                flipped: root.flipped
+            }
         }
     }
 }

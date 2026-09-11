@@ -1,0 +1,54 @@
+name: Arch Linux Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-arch-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Arch Linux package (.pkg.tar.zst) in Docker
+        run: |
+          docker run --rm \
+            -e GITHUB_REF_NAME="${GITHUB_REF_NAME}" \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            archlinux:latest \
+            bash -euxc '
+              pacman -Syu --noconfirm base-devel git cmake ninja qt6-base qt6-declarative qt6-svg qt6-multimedia stockfish
+              useradd -m -s /bin/bash builder
+              echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+              PKGVER="${GITHUB_REF_NAME#v}"
+              if [ -z "$PKGVER" ] || [ "$PKGVER" = "master" ]; then
+                PKGVER=$(grep "^pkgver=" PKGBUILD | cut -d= -f2)
+              fi
+              git config --global --add safe.directory /workspace
+              git archive --format=tar.gz --prefix=Qt6Chess-${PKGVER}/ -o qt6chess-${PKGVER}.tar.gz HEAD
+              chown -R builder:builder /workspace
+              su builder -c "makepkg -sf --noconfirm"
+            '
+          ls -lh *.pkg.tar.zst
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-linux-package
+          path: "*.pkg.tar.zst"
+
+      - name: Upload Arch package to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [ -n "$TAG" ] && [[ "$TAG" =~ ^v ]]; then
+            gh release upload "$TAG" *.pkg.tar.zst --clobber
+          fi

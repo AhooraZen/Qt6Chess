@@ -138,6 +138,20 @@ ApplicationWindow {
                     currentIndex: 0
                 }
 
+                Text {
+                    text: "Theme:"
+                    font.bold: true
+                    font.pixelSize: 11
+                    color: "#a0a0a0"
+                }
+
+                ComboBox {
+                    id: themeCombo
+                    Layout.fillWidth: true
+                    model: ["Emerald", "Wood", "Slate", "Midnight"]
+                    currentIndex: 0
+                }
+
                 Button {
                     text: "New Game"
                     Layout.fillWidth: true
@@ -180,10 +194,21 @@ ApplicationWindow {
                     color: "#33322e"
                 }
 
-                Button {
-                    text: "Copy FEN"
+                RowLayout {
                     Layout.fillWidth: true
-                    onClicked: if (gameController) gameController.copyFenToClipboard();
+                    spacing: 4
+
+                    Button {
+                        text: "Copy FEN"
+                        Layout.fillWidth: true
+                        onClicked: if (gameController) gameController.copyFenToClipboard();
+                    }
+
+                    Button {
+                        text: "Paste FEN"
+                        Layout.fillWidth: true
+                        onClicked: fenDialog.open()
+                    }
                 }
 
                 Button {
@@ -244,7 +269,8 @@ ApplicationWindow {
                         anchors.centerIn: parent
                         width: Math.max(300, Math.min(boardArea.width, boardArea.height) - 12)
                         height: width
-                        gameController: appController
+                        gameController: gameController
+                        boardTheme: themeCombo.currentIndex
                     }
                 }
 
@@ -303,15 +329,16 @@ ApplicationWindow {
             MoveHistory {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                gameController: appController
+                gameController: gameController
             }
 
             // Engine Analysis Panel
             EnginePanel {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 130
+                Layout.preferredHeight: 180
+                Layout.minimumHeight: 140
                 uciController: gameController ? gameController.uciController : null
-                gameController: appController
+                gameController: gameController
             }
         }
     }
@@ -319,12 +346,48 @@ ApplicationWindow {
     // Dialogs
     PromotionDialog {
         id: promoDialog
-        gameController: appController
+        gameController: gameController
     }
 
     GameOverDialog {
         id: gameOverDialog
-        gameController: appController
+        gameController: gameController
+    }
+
+    Dialog {
+        id: fenDialog
+        title: "Load FEN Position"
+        anchors.centerIn: parent
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+
+        ColumnLayout {
+            spacing: 8
+            width: 380
+
+            Text {
+                text: "Paste FEN string:"
+                color: "#d0d0d0"
+                font.pixelSize: 11
+            }
+
+            TextField {
+                id: fenInput
+                Layout.fillWidth: true
+                placeholderText: "e.g. rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+                selectByMouse: true
+            }
+        }
+
+        onAccepted: {
+            if (gameController && fenInput.text.trim().length > 0) {
+                gameController.loadFen(fenInput.text.trim());
+            }
+        }
+        onOpened: {
+            fenInput.text = "";
+            fenInput.forceActiveFocus();
+        }
     }
 
     Connections {

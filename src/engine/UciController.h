@@ -4,6 +4,8 @@
 #include <QProcess>
 #include <QStringList>
 #include <QMap>
+#include <QElapsedTimer>
+#include <QVariantList>
 
 struct EngineLine {
     int multiPv = 1;
@@ -30,6 +32,7 @@ class UciController : public QObject {
     Q_PROPERTY(qint64 nps READ nps NOTIFY npsChanged)
     Q_PROPERTY(QString engineName READ engineName NOTIFY engineNameChanged)
     Q_PROPERTY(int multiPv READ multiPv WRITE setMultiPv NOTIFY multiPvChanged)
+    Q_PROPERTY(QVariantList candidateLines READ candidateLines NOTIFY candidateLinesChanged)
 
 public:
     explicit UciController(QObject *parent = nullptr);
@@ -44,6 +47,10 @@ public:
     qint64 nps() const { return m_nps; }
     QString engineName() const { return m_engineName; }
     int multiPv() const { return m_multiPv; }
+    QVariantList candidateLines() const { return m_candidateLines; }
+
+    bool isWhiteToMove() const { return m_isWhiteToMove; }
+    void setIsWhiteToMove(bool whiteToMove) { m_isWhiteToMove = whiteToMove; }
 
     void setMultiPv(int lines);
 
@@ -64,6 +71,7 @@ signals:
     void npsChanged();
     void engineNameChanged();
     void multiPvChanged();
+    void candidateLinesChanged();
     void bestMoveFound(const QString &bestMove, const QString &ponder);
     void lineUpdated(int pvIndex, double eval, bool isMate, int mateIn, int depth, const QString &pv, const QString &fromSq, const QString &toSq);
     void primaryArrowChanged(const QString &fromSq, const QString &toSq);
@@ -83,6 +91,9 @@ private:
     int m_depth = 0;
     qint64 m_nps = 0;
     int m_multiPv = 2;
+    bool m_isWhiteToMove = true;
+    QElapsedTimer m_infoTimer;
+    QVariantList m_candidateLines;
     QString m_engineName = QStringLiteral("Stockfish");
     QString m_currentPositionCmd;
     QMap<int, EngineLine> m_lines;

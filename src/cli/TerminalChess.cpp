@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <signal.h>
+#include <sys/types.h>
 
 #include <QProcess>
 #include <QString>
@@ -27,19 +28,13 @@ namespace TerminalChess {
 // Terminal state management
 static struct termios s_origTermios;
 static bool s_rawModeActive = false;
+static pid_t s_childEnginePid = 0;
 
 static void disableRawMode()
 {
     if (s_rawModeActive) {
-        // Disable SGR mouse tracking & normal mouse tracking
-        std::cout << "\033[?1006l\033[?1000l";
-        // Show cursor
-        std::cout << "\033[?25h";
-        // Exit alternate screen buffer
-        std::cout << "\033[?1049l";
-        // Reset ANSI colors
-        std::cout << "\033[0m" << std::flush;
-
+        const char resetSeq[] = "\033[?1006l\033[?1000l\033[?25h\033[?1049l\033[0m";
+        (void)::write(STDOUT_FILENO, resetSeq, sizeof(resetSeq) - 1);
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &s_origTermios);
         s_rawModeActive = false;
     }
@@ -78,6 +73,9 @@ static void enableRawMode()
 static void signalHandler(int signum)
 {
     (void)signum;
+    if (s_childEnginePid > 0) {
+        ::kill(s_childEnginePid, SIGTERM);
+    }
     disableRawMode();
     _exit(0);
 }
@@ -359,6 +357,8 @@ int run(int elo, int playerColor)
     sa.sa_flags = 0;
     sigaction(SIGINT, &sa, nullptr);
     sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGHUP, &sa, nullptr);
+    sigaction(SIGQUIT, &sa, nullptr);
 
     enableRawMode();
 
@@ -387,6 +387,7 @@ int run(int elo, int playerColor)
     if (!sfPath.isEmpty()) {
         stockfish.start(sfPath);
         if (stockfish.waitForStarted(3000)) {
+            s_childEnginePid = static_cast<pid_t>(stockfish.processId());
             stockfish.write("uci\n");
             stockfish.write(QString("setoption name UCI_LimitStrength value true\n").toUtf8());
             stockfish.write(QString("setoption name UCI_Elo value %1\n").arg(elo).toUtf8());
@@ -1067,6 +1068,7 @@ int run(int elo, int playerColor)
         stockfish.write("quit\n");
         stockfish.waitForFinished(1000);
     }
+    s_childEnginePid = 0;
 
     std::cout << "\nThanks for playing Qt6Chess!\n";
     return 0;

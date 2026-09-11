@@ -53,7 +53,6 @@ int main(int argc, char *argv[])
 
     GameController gameController;
     engine.rootContext()->setContextProperty(QStringLiteral("gameController"), &gameController);
-    engine.rootContext()->setContextProperty(QStringLiteral("appController"), &gameController);
 
     const QUrl url(QStringLiteral("qrc:/qt/qml/Qt6Chess/UI/qml/Main.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,

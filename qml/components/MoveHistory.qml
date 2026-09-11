@@ -33,6 +33,13 @@ Rectangle {
                     if (root.gameController) root.gameController.copyPgnToClipboard();
                 }
             }
+
+            Button {
+                text: "Load PGN"
+                font.pixelSize: 10
+                flat: true
+                onClicked: pgnDialog.open()
+            }
         }
 
         // Moves list
@@ -174,6 +181,47 @@ Rectangle {
                     }
                 }
             }
+        }
+    }
+
+    Dialog {
+        id: pgnDialog
+        title: "Load PGN Game"
+        anchors.centerIn: parent
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+
+        ColumnLayout {
+            spacing: 8
+            width: 320
+
+            Text {
+                text: "Paste PGN text:"
+                color: "#d0d0d0"
+                font.pixelSize: 11
+            }
+
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 120
+
+                TextArea {
+                    id: pgnInput
+                    placeholderText: "1. e4 e5 2. Nf3 Nc6..."
+                    selectByMouse: true
+                    wrapMode: TextEdit.Wrap
+                }
+            }
+        }
+
+        onAccepted: {
+            if (root.gameController && pgnInput.text.trim().length > 0) {
+                root.gameController.loadPgn(pgnInput.text.trim());
+            }
+        }
+        onOpened: {
+            pgnInput.text = "";
+            pgnInput.forceActiveFocus();
         }
     }
 }

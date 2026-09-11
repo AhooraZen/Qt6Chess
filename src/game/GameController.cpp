@@ -90,12 +90,15 @@ void GameController::newGame(int mode, int color, int timeMin, int incSec)
     m_pendingFrom = -1;
     m_pendingTo = -1;
     m_playedMoves.clear();
+    m_startFen = QStringLiteral("startpos");
 
     m_board = chess::Board(chess::constants::STARTPOS);
 
     m_history->clear();
 
-    if (timeMin > 0) {
+    if (mode == ModeAnalysis) {
+        m_clock->setUnlimited();
+    } else if (timeMin > 0) {
         m_clock->setTimeControl(timeMin * 60, incSec);
         m_clock->start(ChessClock::White);
     } else {
@@ -124,6 +127,17 @@ void GameController::newGame(int mode, int color, int timeMin, int incSec)
     } else {
         triggerAiMoveIfNeeded();
     }
+}
+
+void GameController::switchToAnalysisMode()
+{
+    m_gameMode = ModeAnalysis;
+    emit gameModeChanged();
+    m_clock->pause();
+    m_isGameOver = false;
+    emit gameOverChanged();
+    updateEnginePosition();
+    m_uci->startInfiniteAnalysis();
 }
 
 std::vector<int> GameController::calculateLegalTargets(int fromSq)
@@ -281,6 +295,12 @@ bool GameController::tryMove(int fromSq, int toSq, const QString &promoChar)
 
     std::string sanStr = chess::uci::moveToSan(m_board, targetMove);
 
+    int curPly = m_history->currentPly();
+    if (curPly >= 0 && curPly < static_cast<int>(m_playedMoves.size())) {
+        m_playedMoves.resize(curPly);
+        m_history->truncateAfterPly(curPly);
+    }
+
     m_board.makeMove(targetMove);
     m_playedMoves.push_back(targetMove);
 
@@ -394,7 +414,8 @@ void GameController::updateEnginePosition()
     for (const auto &m : m_playedMoves) {
         moves.append(QString::fromStdString(chess::uci::moveToUci(m)));
     }
-    m_uci->setPosition(QStringLiteral("startpos"), moves);
+    m_uci->setIsWhiteToMove(m_board.sideToMove() == chess::Color::WHITE);
+    m_uci->setPosition(m_startFen, moves);
     if (m_gameMode == ModeAnalysis && !m_isGameOver) {
         m_uci->startInfiniteAnalysis();
     }
@@ -438,8 +459,11 @@ void GameController::checkGameEnd()
 
 void GameController::onClockTimeOut(int side)
 {
-    if (m_isGameOver) return;
+    if (m_isGameOver || m_gameMode == ModeAnalysis) return;
     m_isGameOver = true;
+    m_clock->pause();
+    m_uci->stopAnalysis();
+    m_isThinking = false;
     m_soundManager->playEnd();
     QString winner = (side == ChessClock::White) ? QStringLiteral("Black") : QStringLiteral("White");
     m_gameResult = QString("%1 won on time!").arg(winner);
@@ -453,6 +477,8 @@ void GameController::resignCurrentPlayer()
     if (m_isGameOver) return;
     m_isGameOver = true;
     m_clock->pause();
+    m_uci->stopAnalysis();
+    m_isThinking = false;
     m_soundManager->playEnd();
     QString winner = (m_board.sideToMove() == chess::Color::WHITE) ? QStringLiteral("Black") : QStringLiteral("White");
     m_gameResult = QString("%1 won by Resignation").arg(winner);
@@ -484,7 +510,8 @@ void GameController::undoMove()
         m_lastTo = -1;
     }
 
-    m_history->setCurrentPly(static_cast<int>(m_playedMoves.size()));
+    int newPly = static_cast<int>(m_playedMoves.size());
+    m_history->truncateAfterPly(newPly);
     updateBoardView();
     updateEnginePosition();
     checkGameEnd();
@@ -500,6 +527,7 @@ void GameController::loadFen(const QString &fen)
     try {
         chess::Board newBoard(fen.toStdString());
         m_board = newBoard;
+        m_startFen = fen.trimmed();
         m_playedMoves.clear();
         m_history->clear();
         m_selectedSquare = -1;
@@ -523,15 +551,11 @@ void GameController::loadFen(const QString &fen)
 
 void GameController::loadPgn(const QString &pgn)
 {
-    // Reset and step through PGN moves
     newGame(ModeAnalysis);
-    // Simple SAN / move sequence parsing
     QString cleaned = pgn;
-    // Remove headers
     cleaned.remove(QRegularExpression(QStringLiteral("\\[.*?\\]")));
-    // Remove comments
-    cleaned.remove(QRegularExpression(QStringLiteral("\\{.*?\\}")));
-    // Remove move numbers e.g. "1."
+    cleaned.remove(QRegularExpression(QStringLiteral("\\{.*?\\}"), QRegularExpression::DotMatchesEverythingOption));
+    cleaned.remove(QRegularExpression(QStringLiteral(";[^\n]*")));
     cleaned.remove(QRegularExpression(QStringLiteral("\\d+\\.\\.\\.|\\d+\\.")));
 
     QStringList tokens = cleaned.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
@@ -541,15 +565,27 @@ void GameController::loadPgn(const QString &pgn)
             chess::Move m = chess::uci::parseSan(m_board, token.toStdString());
             if (m != chess::Move::NO_MOVE) {
                 std::string uciStr = chess::uci::moveToUci(m);
-                int from = m.from().index();
-                int to = m.to().index();
-                QString promo = (uciStr.length() >= 5) ? QString::fromStdString(uciStr.substr(4, 1)) : QStringLiteral("q");
-                tryMove(from, to, promo);
+                bool isWhite = (m_board.sideToMove() == chess::Color::WHITE);
+                std::string sanStr = chess::uci::moveToSan(m_board, m);
+                m_board.makeMove(m);
+                m_playedMoves.push_back(m);
+                QString currentFenStr = QString::fromStdString(m_board.getFen());
+                m_history->addMove(isWhite, QString::fromStdString(sanStr), QString::fromStdString(uciStr), currentFenStr);
             }
         } catch (...) {
             break;
         }
     }
+    if (!m_playedMoves.empty()) {
+        m_lastFrom = m_playedMoves.back().from().index();
+        m_lastTo = m_playedMoves.back().to().index();
+        m_soundManager->playMove();
+    }
+    updateBoardView();
+    updateEnginePosition();
+    checkGameEnd();
+    emit boardChanged();
+    emit turnChanged();
 }
 
 void GameController::goToPly(int ply)
@@ -560,7 +596,18 @@ void GameController::goToPly(int ply)
             m_board = chess::Board(targetFen.toStdString());
             m_history->setCurrentPly(ply);
             updateBoardView();
-            updateEnginePosition();
+
+            QStringList movesUpToPly;
+            int limit = std::min(ply, static_cast<int>(m_playedMoves.size()));
+            for (int i = 0; i < limit; ++i) {
+                movesUpToPly.append(QString::fromStdString(chess::uci::moveToUci(m_playedMoves[i])));
+            }
+            m_uci->setIsWhiteToMove(m_board.sideToMove() == chess::Color::WHITE);
+            m_uci->setPosition(m_startFen, movesUpToPly);
+            if (m_gameMode == ModeAnalysis && !m_isGameOver) {
+                m_uci->startInfiniteAnalysis();
+            }
+
             emit boardChanged();
             emit turnChanged();
         } catch (...) {}

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(Qt6Chess VERSION 1.0.2 LANGUAGES CXX)
+project(Qt6Chess VERSION 1.0.3 LANGUAGES CXX)
 
 
 set(CMAKE_CXX_STANDARD 20)

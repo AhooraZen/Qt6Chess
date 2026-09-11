@@ -91,6 +91,7 @@ public slots:
     void copyFenToClipboard();
     void copyPgnToClipboard();
     void resignCurrentPlayer();
+    void switchToAnalysisMode();
 
 signals:
     void selectionChanged();
@@ -123,6 +124,7 @@ private:
 
     bool m_flipped = false;
     QString m_statusText;
+    QString m_startFen = QStringLiteral("startpos");
     bool m_isGameOver = false;
     QString m_gameResult;
     bool m_isThinking = false;

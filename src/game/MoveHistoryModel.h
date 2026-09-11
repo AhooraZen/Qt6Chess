@@ -42,6 +42,7 @@ public:
     void addMove(bool isWhite, const QString &san, const QString &uci, const QString &fen);
     void clear();
     void setCurrentPly(int ply);
+    void truncateAfterPly(int ply);
 
     Q_INVOKABLE QString exportPgn(const QString &whitePlayer, const QString &blackPlayer, const QString &event, const QString &result) const;
     Q_INVOKABLE QString getFenAtPly(int ply) const;

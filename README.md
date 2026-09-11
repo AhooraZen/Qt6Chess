@@ -13,5 +13,5 @@ A modern, high-performance, native desktop Chess application for Linux/KDE power
 ```bash
 cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-./build/Qt6Chess
+./build/bin/Qt6Chess
 ```

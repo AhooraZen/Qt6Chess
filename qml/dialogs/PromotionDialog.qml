@@ -12,6 +12,12 @@ Popup {
     anchors.centerIn: Overlay.overlay
     closePolicy: Popup.CloseOnEscape
 
+    onClosed: {
+        if (root.gameController && root.gameController.isPromotionPending) {
+            root.gameController.cancelPromotion();
+        }
+    }
+
     background: Rectangle {
         color: "#262522"
         radius: 8
