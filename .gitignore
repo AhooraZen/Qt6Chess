@@ -1,0 +1,30 @@
+# Build directories
+build/
+bin/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+
+# CMake artifacts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.ninja
+.ninja_*
+compile_commands.json
+
+# Qt Creator & IDEs
+*.user
+*.user.*
+.vscode/
+.idea/
+*.swp
+*~
+
+# Testing
+Testing/
+*.log
