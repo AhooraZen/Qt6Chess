@@ -202,13 +202,16 @@ ApplicationWindow {
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 8
+            Layout.minimumWidth: 500
+            spacing: 12
 
-            // Vertical Evaluation Bar
+            // Vertical Evaluation Bar aligned with Board
             EvalBar {
                 id: evalBar
                 Layout.fillHeight: true
-                Layout.preferredWidth: 24
+                Layout.preferredWidth: 26
+                Layout.topMargin: 50
+                Layout.bottomMargin: 50
                 uciController: gameController ? gameController.uciController : null
                 flipped: gameController ? gameController.flipped : false
             }
@@ -217,7 +220,7 @@ ApplicationWindow {
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 6
+                spacing: 8
 
                 // Top Clock
                 ChessClockView {
@@ -231,13 +234,17 @@ ApplicationWindow {
 
                 // Interactive Board
                 Item {
+                    id: boardArea
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    Layout.minimumHeight: 380
 
                     ChessBoard {
                         id: board
                         anchors.centerIn: parent
-                        gameController: window.gameController
+                        width: Math.max(300, Math.min(boardArea.width, boardArea.height) - 12)
+                        height: width
+                        gameController: appController
                     }
                 }
 
@@ -255,7 +262,9 @@ ApplicationWindow {
 
         // ================= Right Column: Engine & Move History =================
         ColumnLayout {
-            Layout.preferredWidth: 280
+            Layout.preferredWidth: 290
+            Layout.minimumWidth: 260
+            Layout.maximumWidth: 320
             Layout.fillHeight: true
             spacing: 8
 
@@ -294,7 +303,7 @@ ApplicationWindow {
             MoveHistory {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                gameController: window.gameController
+                gameController: appController
             }
 
             // Engine Analysis Panel
@@ -302,7 +311,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 130
                 uciController: gameController ? gameController.uciController : null
-                gameController: window.gameController
+                gameController: appController
             }
         }
     }
@@ -310,12 +319,12 @@ ApplicationWindow {
     // Dialogs
     PromotionDialog {
         id: promoDialog
-        gameController: window.gameController
+        gameController: appController
     }
 
     GameOverDialog {
         id: gameOverDialog
-        gameController: window.gameController
+        gameController: appController
     }
 
     Connections {

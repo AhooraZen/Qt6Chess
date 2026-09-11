@@ -134,4 +134,6 @@ void ChessBoardModel::syncWithBoard(const chess::Board &board,
             emit dataChanged(idx, idx);
         }
     }
+    m_revision++;
+    emit boardChanged();
 }

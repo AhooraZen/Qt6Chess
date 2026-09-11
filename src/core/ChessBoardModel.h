@@ -7,6 +7,7 @@
 
 class ChessBoardModel : public QAbstractListModel {
     Q_OBJECT
+    Q_PROPERTY(int revision READ revision NOTIFY boardChanged)
 
 public:
     enum ChessRoles {
@@ -42,6 +43,8 @@ public:
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
+    int revision() const { return m_revision; }
+
     Q_INVOKABLE QVariantMap getSquareData(int sqIndex) const;
 
     void syncWithBoard(const chess::Board &board,
@@ -51,6 +54,10 @@ public:
                        int lastTo,
                        int kingInCheckSquare);
 
+signals:
+    void boardChanged();
+
 private:
     std::vector<SquareData> m_squares;
+    int m_revision = 0;
 };

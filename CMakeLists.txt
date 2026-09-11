@@ -5,6 +5,12 @@ project(Qt6Chess VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+    message(STATUS "ccache enabled: ${CCACHE_PROGRAM}")
+endif()
+
 find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Svg Multimedia)
 
 qt_standard_project_setup()
@@ -60,6 +66,8 @@ qt_add_qml_module(Qt6Chess
         src/game/MoveHistoryModel.cpp
         src/audio/SoundManager.h
         src/audio/SoundManager.cpp
+        src/cli/TerminalChess.h
+        src/cli/TerminalChess.cpp
 )
 
 target_include_directories(Qt6Chess PRIVATE
@@ -67,6 +75,7 @@ target_include_directories(Qt6Chess PRIVATE
     src/engine
     src/game
     src/audio
+    src/cli
 )
 
 target_link_libraries(Qt6Chess PRIVATE
@@ -76,6 +85,14 @@ target_link_libraries(Qt6Chess PRIVATE
     Qt6::QuickControls2
     Qt6::Svg
     Qt6::Multimedia
+)
+
+target_precompile_headers(Qt6Chess PRIVATE
+    src/core/chess.hpp
+    <QObject>
+    <QString>
+    <vector>
+    <string>
 )
 
 # Automated unit tests

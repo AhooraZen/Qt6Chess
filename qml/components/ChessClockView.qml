@@ -8,7 +8,10 @@ Rectangle {
     property string playerName: isWhiteSide ? "White" : "Black"
     property bool isActive: clock ? (clock.activeSide === (isWhiteSide ? 1 : 2) && clock.isRunning) : false
 
-    height: 48
+    implicitHeight: 44
+    implicitWidth: 300
+    Layout.fillWidth: true
+    Layout.preferredHeight: 44
     color: "#262522"
     radius: 6
     border.color: isActive ? "#38bdf8" : "#383734"

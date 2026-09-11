@@ -17,4 +17,10 @@ target_link_libraries(TestChessCore PRIVATE
     Qt6::Test
 )
 
+target_precompile_headers(TestChessCore PRIVATE
+    ../src/core/chess.hpp
+    <QObject>
+    <QString>
+)
+
 add_test(NAME TestChessCore COMMAND TestChessCore)

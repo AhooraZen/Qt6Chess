@@ -15,8 +15,8 @@ Item {
     property color checkColor: "#e05353"
     property color dotColor: Qt.rgba(0, 0, 0, 0.22)
 
-    width: Math.min(parent.width, parent.height)
-    height: width
+    implicitWidth: 480
+    implicitHeight: 480
 
     Rectangle {
         id: boardBg
@@ -50,7 +50,11 @@ Item {
                     readonly property int sqIndex: rank * 8 + file
 
                     // Data from model
-                    readonly property var sqData: root.gameController ? root.gameController.boardModel.getSquareData(sqIndex) : null
+                    readonly property int rev: root.gameController ? root.gameController.boardModel.revision : 0
+                    readonly property var sqData: {
+                        var _ = rev;
+                        return root.gameController ? root.gameController.boardModel.getSquareData(sqIndex) : null;
+                    }
                     readonly property bool isLight: ((file + rank) % 2 !== 0)
                     readonly property bool isSelected: sqData ? sqData.isSelected : false
                     readonly property bool isLastMove: sqData ? sqData.isLastMove : false
