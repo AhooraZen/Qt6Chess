@@ -52,7 +52,6 @@ void ChessClock::start(Side side)
 void ChessClock::pause()
 {
     if (m_isRunning) {
-        onTick(); // Flush elapsed delta
         m_isRunning = false;
         m_tickTimer.stop();
         emit runningChanged();
@@ -64,18 +63,19 @@ void ChessClock::switchTurn()
     if (m_isUnlimited) return;
 
     if (m_isRunning) {
-        onTick(); // Flush time spent
+        qint64 elapsed = m_elapsedTimer.restart();
 
         // Apply increment to side that just finished move
         if (m_activeSide == White) {
+            m_whiteTimeMs = std::max<qint64>(0, m_whiteTimeMs - elapsed);
             m_whiteTimeMs += static_cast<qint64>(m_incrementSeconds) * 1000;
             m_activeSide = Black;
         } else if (m_activeSide == Black) {
+            m_blackTimeMs = std::max<qint64>(0, m_blackTimeMs - elapsed);
             m_blackTimeMs += static_cast<qint64>(m_incrementSeconds) * 1000;
             m_activeSide = White;
         }
 
-        m_elapsedTimer.restart();
         emit timeChanged();
         emit activeSideChanged();
     } else {
@@ -93,18 +93,27 @@ void ChessClock::onTick()
     if (m_activeSide == White) {
         m_whiteTimeMs = std::max<qint64>(0, m_whiteTimeMs - elapsed);
         if (m_whiteTimeMs == 0) {
-            pause();
+            m_isRunning = false;
+            m_tickTimer.stop();
+            emit runningChanged();
+            emit timeChanged();
             emit timeOut(White);
+            return;
         }
     } else if (m_activeSide == Black) {
         m_blackTimeMs = std::max<qint64>(0, m_blackTimeMs - elapsed);
         if (m_blackTimeMs == 0) {
-            pause();
+            m_isRunning = false;
+            m_tickTimer.stop();
+            emit runningChanged();
+            emit timeChanged();
             emit timeOut(Black);
+            return;
         }
     }
     emit timeChanged();
 }
+
 
 QString ChessClock::formatTime(qint64 ms) const
 {
