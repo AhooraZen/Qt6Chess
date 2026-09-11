@@ -1,17 +1,149 @@
-# Qt6Chess
+# ♟️ Qt6Chess
 
-A modern, high-performance, native desktop Chess application for Linux/KDE powered by **Qt 6.8+ (C++20 & QML / Qt Quick SceneGraph)** and **Stockfish 17**.
+[![Release](https://img.shields.io/github/v/release/AhooraZen/Qt6Chess?style=flat-square&color=3b82f6)](https://github.com/AhooraZen/Qt6Chess/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/AhooraZen/Qt6Chess/release.yml?style=flat-square)](https://github.com/AhooraZen/Qt6Chess/actions)
+[![Arch Linux](https://img.shields.io/badge/Arch_Linux-pkg.tar.zst-1793d1?style=flat-square&logo=archlinux)](https://github.com/AhooraZen/Qt6Chess/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=cplusplus)](https://en.cppreference.com/w/cpp/20)
+[![Qt](https://img.shields.io/badge/Qt-6.8-41CD52?style=flat-square&logo=qt)](https://www.qt.io/)
 
-## Highlights
-- **High-Performance C++20 Core**: Bitboard move generator with sub-microsecond legal move generation and full FIDE chess rules.
-- **Hardware-Accelerated QML**: 60/120 FPS animations, smooth piece sliding, fluid drag-and-drop, and dynamic tactical arrows.
-- **Stockfish UCI Integration**: Live continuous evaluation bar, MultiPV top candidate lines, and best move hints.
-- **Multiple Game Modes**: Play vs Computer (Elo 800 - 3200+), Local 2-Player, Free Analysis Board, and PGN Database Explorer.
-- **Themes & Audio**: Scalable vector SVG piece sets, board themes (Emerald, Wood, Midnight, Slate), and low-latency audio effects.
+A fast, lightweight, native desktop chess app and interactive ANSI terminal client for Linux. Built with **C++20**, **Qt 6.8 (QML SceneGraph)**, and **Stockfish 17.1**.
 
-## Building
+Zero Electron bloat, starts in 50 milliseconds, and eats around 30MB of RAM.
+
+---
+
+<p align="center">
+  <img src="docs/screenshots/gui_demo.gif" alt="Qt6Chess GUI Demo" width="720"/>
+</p>
+
+---
+
+## Why?
+
+Most desktop chess apps today are either heavy Electron wrappers that eat half a gigabyte of memory just to show an 8x8 grid, or dated X11 interfaces that haven't been touched in a decade.
+
+Qt6Chess was built as a clean, offline-first chess tool:
+- You get a slick hardware-accelerated GUI when you want it.
+- You get a full ANSI terminal TUI with mouse support when you want to look productive in a terminal window.
+- Fully offline engine analysis with Stockfish 17 — no account required, no tracking, no subscriptions.
+
+---
+
+## Features
+
+### 🖥️ Native Hardware-Accelerated GUI
+- **SceneGraph Rendering**: Butter-smooth 60/120 FPS piece animations and clean vector SVG graphics.
+- **Board Themes**: 4 visual presets — Emerald, Wood, Slate, and Midnight.
+- **Evaluation Bar**: Real-time centipawn and mate evaluations normalized to White.
+- **MultiPV Candidate Lines**: Live display of top 3 candidate engine variations with evaluation badges.
+- **Tactical Arrows**: Engine best-move hints drawn directly over the board.
+- **PGN & FEN Ingestion**: Paste or copy FEN positions and full PGN games with a single click.
+
+### 📟 ANSI SGR Terminal Mode (`qt6chess --cli`)
+- Full interactive chess in your terminal.
+- **Mouse support**: Click on squares directly in your terminal to select and move pieces.
+- Keyboard navigation (WASD/Arrows + Enter) and SAN/UCI move entry (`e4`, `Nf3`).
+- TrueColor piece badges, captured pieces tracker, and live Stockfish evaluation hints.
+
+### ⏱️ Time Controls & Game Modes
+- **Game Modes**: Play vs Computer (Elo configurable from 800 to 3000+), Local Pass & Play, and Free Analysis Board.
+- **Clocks**: Blitz (3+2), Rapid (10+0), Bullet (1+1), Classical (15+10), or Unlimited.
+- **Move History**: Full turn-by-turn list with branching support and navigation rewind.
+
+---
+
+## Installation
+
+### Arch Linux (Binary Package)
+Pre-built packages are compiled natively inside official Arch Linux containers on every release:
+
 ```bash
-cmake -B build -GNinja -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+# Download and install the latest Arch package directly
+sudo pacman -U https://github.com/AhooraZen/Qt6Chess/releases/download/v1.0.4/qt6chess-1.0.4-1-x86_64.pkg.tar.zst
+```
+
+### Windows (Installer & Portable)
+Pre-built 64-bit binaries are built with MSVC and bundled with Qt 6.8 on every release:
+- **Installer**: Download **`Qt6Chess-Setup-x64.exe`** from [Releases](https://github.com/AhooraZen/Qt6Chess/releases/latest) and run the setup wizard.
+- **Portable ZIP**: Download **`qt6chess-windows-x64.zip`**, extract anywhere, and run `Qt6Chess.exe`.
+
+### Build from Source
+Requires GCC/Clang with C++20 support, CMake 3.25+, Ninja, and Qt 6.8 (Core, Gui, Quick, QuickControls2, Svg, Multimedia).
+
+```bash
+# Clone the repository
+git clone https://github.com/AhooraZen/Qt6Chess.git
+cd Qt6Chess
+
+# Configure and build
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+ninja -C build
+
+# Run unit tests
+ctest --test-dir build --output-on-failure
+
+# Launch the app
 ./build/bin/Qt6Chess
 ```
+
+*(Optional) Install Stockfish for engine play and analysis:*
+```bash
+# Arch Linux
+sudo pacman -S stockfish
+
+# Debian / Ubuntu
+sudo apt install stockfish
+```
+
+---
+
+## Terminal TUI Mode
+
+Launch with the `--cli` flag:
+
+```bash
+qt6chess --cli
+```
+
+<p align="center">
+  <img src="docs/screenshots/tui_demo.gif" alt="Qt6Chess Terminal TUI Demo" width="720"/>
+</p>
+
+### Controls in TUI
+| Key / Input | Action |
+|-------------|--------|
+| **Mouse Click** | Click piece, then click destination to move |
+| **Arrows / WASD** | Move board cursor |
+| **Enter / Space** | Select piece / Confirm destination |
+| **`e`** | Request Stockfish evaluation |
+| **`u`** | Undo last move |
+| **`f`** | Flip board orientation |
+| **`/`** | Type UCI or SAN move (e.g. `e4`, `Nf3`, `e2e4`) |
+| **`?`** | Toggle in-game help menu |
+| **`q`** | Quit cleanly |
+
+---
+
+## Tech Stack & Architecture
+
+- **Core**: C++20, Bitboard move generator (`chess.hpp`) capable of generating ~50M legal moves/sec.
+- **Frontend**: Qt Quick 6.8 (QML SceneGraph) with custom `QAbstractListModel` implementations.
+- **Engine IPC**: Non-blocking asynchronous UCI communication over `QProcess` with signal throttling.
+- **TUI**: Raw POSIX `termios` handler with ANSI SGR sequences and 1006 SGR mouse tracking.
+- **CI/CD**: GitHub Actions building native Arch Linux `.pkg.tar.zst` packages in Docker.
+
+---
+
+## Support & Coffee
+
+If this little project saved you some RAM or you had fun playing chess in your terminal, feel free to give it a ⭐ or buy me a coffee:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Donate-yellow?style=flat-square&logo=buy-me-a-coffee)](https://buymeacoffee.com/ahoora)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?style=flat-square&logo=kofi)](https://ko-fi.com/ahoora)
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE). Copyright (c) 2026 AhooraZen.

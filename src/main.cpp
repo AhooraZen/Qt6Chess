@@ -34,7 +34,11 @@ int main(int argc, char *argv[])
         }
     }
 
+#if defined(Q_OS_UNIX) && !defined(Q_OS_DARWIN)
     bool isHeadless = qEnvironmentVariableIsEmpty("DISPLAY") && qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY");
+#else
+    bool isHeadless = false;
+#endif
 
     // If headless and no screenshot requested and GUI not forced, run interactive Terminal Chess
     if ((isHeadless && screenshotPath.isEmpty() && !forceGui) || forceCli) {

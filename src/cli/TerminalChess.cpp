@@ -11,6 +11,19 @@
 #include <thread>
 #include <cmath>
 
+#if defined(_WIN32)
+
+namespace TerminalChess {
+int run(int /*elo*/, int /*playerColor*/)
+{
+    std::cout << "Terminal TUI mode is currently supported on Linux / Unix terminals.\n"
+              << "Please launch Qt6Chess without --cli to use the GUI." << std::endl;
+    return 0;
+}
+} // namespace TerminalChess
+
+#else
+
 #include <termios.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -1075,3 +1088,4 @@ int run(int elo, int playerColor)
 }
 
 } // namespace TerminalChess
+#endif // !_WIN32
