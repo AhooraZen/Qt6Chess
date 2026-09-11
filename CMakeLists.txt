@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(Qt6Chess VERSION 1.0.4 LANGUAGES CXX)
+project(Qt6Chess VERSION 1.0.5 LANGUAGES CXX)
 
 
 set(CMAKE_CXX_STANDARD 20)
@@ -113,4 +113,3 @@ install(FILES resources/qt6chess.desktop
 install(FILES resources/icons/qt6chess.svg
     DESTINATION share/icons/hicolor/scalable/apps
 )
-
