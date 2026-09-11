@@ -5,7 +5,7 @@ import QtQuick.Layouts
 Popup {
     id: root
     property var gameController: null
-    property string playerColor: gameController ? gameController.activeColor : "white"
+    property string playerColor: root.gameController ? root.gameController.activeColor : "white"
 
     modal: true
     focus: true

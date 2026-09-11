@@ -13,8 +13,10 @@ ApplicationWindow {
     height: 720
     minimumWidth: 800
     minimumHeight: 600
-    title: "Qt6Chess - " + (gameController ? gameController.statusText : "Desktop Chess")
+    title: "Qt6Chess - " + (controller ? controller.statusText : "Desktop Chess")
     color: "#181715"
+
+    readonly property var controller: gameController
 
     // Shortcuts
     Shortcut {
@@ -237,8 +239,8 @@ ApplicationWindow {
                 Layout.preferredWidth: 26
                 Layout.topMargin: 50
                 Layout.bottomMargin: 50
-                uciController: gameController ? gameController.uciController : null
-                flipped: gameController ? gameController.flipped : false
+                uciController: window.controller ? window.controller.uciController : null
+                flipped: window.controller ? window.controller.flipped : false
             }
 
             // Board Container with Clocks
@@ -250,9 +252,9 @@ ApplicationWindow {
                 // Top Clock
                 ChessClockView {
                     Layout.fillWidth: true
-                    clock: gameController ? gameController.clock : null
-                    isWhiteSide: gameController ? gameController.flipped : false
-                    playerName: (gameController && gameController.gameMode === 0)
+                    clock: window.controller ? window.controller.clock : null
+                    isWhiteSide: window.controller ? window.controller.flipped : false
+                    playerName: (window.controller && window.controller.gameMode === 0)
                         ? (isWhiteSide ? "White (Stockfish)" : "Black (Stockfish)")
                         : (isWhiteSide ? "White" : "Black")
                 }
@@ -269,7 +271,7 @@ ApplicationWindow {
                         anchors.centerIn: parent
                         width: Math.max(300, Math.min(boardArea.width, boardArea.height) - 12)
                         height: width
-                        gameController: gameController
+                        gameController: window.controller
                         boardTheme: themeCombo.currentIndex
                     }
                 }
@@ -277,9 +279,9 @@ ApplicationWindow {
                 // Bottom Clock
                 ChessClockView {
                     Layout.fillWidth: true
-                    clock: gameController ? gameController.clock : null
-                    isWhiteSide: gameController ? !gameController.flipped : true
-                    playerName: (gameController && gameController.gameMode === 0)
+                    clock: window.controller ? window.controller.clock : null
+                    isWhiteSide: window.controller ? !window.controller.flipped : true
+                    playerName: (window.controller && window.controller.gameMode === 0)
                         ? (isWhiteSide ? "White (You)" : "Black (You)")
                         : (isWhiteSide ? "White" : "Black")
                 }
@@ -306,19 +308,19 @@ ApplicationWindow {
                     anchors.margins: 8
 
                     Text {
-                        text: gameController ? gameController.statusText : ""
+                        text: window.controller ? window.controller.statusText : ""
                         font.bold: true
                         font.pixelSize: 13
                         color: {
-                            if (!gameController) return "#ffffff";
-                            if (gameController.isGameOver) return "#f87171";
+                            if (!window.controller) return "#ffffff";
+                            if (window.controller.isGameOver) return "#f87171";
                             return "#e2e8f0";
                         }
                         Layout.fillWidth: true
                     }
 
                     BusyIndicator {
-                        running: gameController ? gameController.isThinking : false
+                        running: window.controller ? window.controller.isThinking : false
                         Layout.preferredWidth: 22
                         Layout.preferredHeight: 22
                     }
@@ -329,7 +331,7 @@ ApplicationWindow {
             MoveHistory {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                gameController: gameController
+                gameController: window.controller
             }
 
             // Engine Analysis Panel
@@ -337,8 +339,8 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 180
                 Layout.minimumHeight: 140
-                uciController: gameController ? gameController.uciController : null
-                gameController: gameController
+                uciController: window.controller ? window.controller.uciController : null
+                gameController: window.controller
             }
         }
     }
@@ -346,12 +348,12 @@ ApplicationWindow {
     // Dialogs
     PromotionDialog {
         id: promoDialog
-        gameController: gameController
+        gameController: window.controller
     }
 
     GameOverDialog {
         id: gameOverDialog
-        gameController: gameController
+        gameController: window.controller
     }
 
     Dialog {
@@ -391,16 +393,16 @@ ApplicationWindow {
     }
 
     Connections {
-        target: gameController
+        target: window.controller
         function onPromotionPendingChanged() {
-            if (gameController && gameController.isPromotionPending) {
+            if (window.controller && window.controller.isPromotionPending) {
                 promoDialog.open();
             } else {
                 promoDialog.close();
             }
         }
         function onGameOverChanged() {
-            if (gameController && gameController.isGameOver) {
+            if (window.controller && window.controller.isGameOver) {
                 gameOverDialog.open();
             }
         }

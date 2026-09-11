@@ -11,7 +11,7 @@ Canvas {
     property string secondaryTo: ""
 
     Connections {
-        target: gameController ? gameController.uciController : null
+        target: canvas.gameController ? canvas.gameController.uciController : null
         function onPrimaryArrowChanged(fromSq, toSq) {
             canvas.primaryFrom = fromSq;
             canvas.primaryTo = toSq;

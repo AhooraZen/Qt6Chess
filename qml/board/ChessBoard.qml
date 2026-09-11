@@ -5,7 +5,7 @@ import QtQuick.Layouts
 Item {
     id: root
     property var gameController: null
-    property bool flipped: gameController ? gameController.flipped : false
+    property bool flipped: root.gameController ? root.gameController.flipped : false
     property int boardTheme: 0 // 0: Emerald, 1: Wood, 2: Slate, 3: Midnight
 
     // Color theme palettes

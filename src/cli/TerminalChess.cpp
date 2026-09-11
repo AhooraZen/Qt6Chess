@@ -29,6 +29,7 @@ int run(int /*elo*/, int /*playerColor*/)
 #include <sys/ioctl.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <wchar.h>
 
 #include <QProcess>
 #include <QString>
@@ -391,6 +392,7 @@ int run(int elo, int playerColor)
     bool showHelp = false;
     std::string statusMessage = "Welcome! Use Mouse click or Keyboard (Arrows/Enter) to play.";
     EvalInfo currentEval;
+    int pieceGlyphWidth = (wcwidth(0x2654) == 2) ? 2 : 1;
 
     // Connect Stockfish
     QString sfPath = locateStockfish();
@@ -432,13 +434,13 @@ int run(int elo, int playerColor)
     }
 
     auto getSquareAtScreen = [&](int screenX, int screenY) -> int {
-        int boardLeft = 6;
+        int boardLeft = 5;
         int boardTop = 4;
         int relX = screenX - boardLeft;
         int relY = screenY - boardTop;
-        if (relX < 0 || relX >= 32 || relY < 0 || relY >= 16) return -1;
-        int displayFile = relX / 4;
-        int displayRank = relY / 2;
+        if (relX < 0 || relX >= 48 || relY < 0 || relY >= 24) return -1;
+        int displayFile = relX / 6;
+        int displayRank = relY / 3;
         int file = flipped ? (7 - displayFile) : displayFile;
         int rank = flipped ? displayRank : (7 - displayRank);
         return rank * 8 + file;
@@ -460,7 +462,7 @@ int run(int elo, int playerColor)
     while (true) {
         // Clear screen and go to (1, 1)
         std::string out;
-        out.reserve(4096);
+        out.reserve(8192);
         out += "\033[H";
 
         // Dimensions
@@ -474,7 +476,7 @@ int run(int elo, int playerColor)
 
         // Header Title
         out += "\033[1;36m ♞ Qt6Chess Terminal TUI \033[0m\033[90m│ C++20 SceneGraph & ANSI SGR Edition\033[0m\033[K\r\n";
-        out += "\033[90m" + repeatStr("─", std::min(termCols, 78)) + "\033[0m\033[K\r\n";
+        out += "\033[90m" + repeatStr("─", std::min(termCols, 98)) + "\033[0m\033[K\r\n";
 
         // If Help Modal is open
         if (showHelp) {
@@ -487,12 +489,13 @@ int run(int elo, int playerColor)
             out += "  │    • \033[1mLeft Click Elsewhere\033[0m: Deselect / Cancel move                     │\033[K\r\n";
             out += "  │                                                                     │\033[K\r\n";
             out += "  │  \033[1;32mKeyboard Controls:\033[0m                                                 │\033[K\r\n";
-            out += "  │    • \033[1mArrow Keys / WASD / HJKL\033[0m : Move yellow board cursor              │\033[K\r\n";
+            out += "  │    • \033[1mArrow Keys / WASD / HJKL\033[0m : Move cyan board cursor                │\033[K\r\n";
             out += "  │    • \033[1mSpace / Enter\033[0m            : Select piece or execute target move   │\033[K\r\n";
             out += "  │    • \033[1mu\033[0m                        : Undo last move(s)                     │\033[K\r\n";
             out += "  │    • \033[1mf\033[0m                        : Flip board orientation (White/Black)  │\033[K\r\n";
             out += "  │    • \033[1me\033[0m                        : Query Stockfish evaluation & bestmove │\033[K\r\n";
             out += "  │    • \033[1m/\033[0m                        : Enter SAN move directly (e.g. 'Nf3')  │\033[K\r\n";
+            out += "  │    • \033[1mp\033[0m                        : Toggle 1-col / 2-col piece width      │\033[K\r\n";
             out += "  │    • \033[1mr / n\033[0m                    : Restart / New Game                    │\033[K\r\n";
             out += "  │    • \033[1mh / ?\033[0m                    : Toggle this Help popup                │\033[K\r\n";
             out += "  │    • \033[1mq / Esc\033[0m                  : Quit Qt6Chess                         │\033[K\r\n";
@@ -512,26 +515,34 @@ int run(int elo, int playerColor)
             continue;
         }
 
-        // Prepare side panel lines
-        std::vector<std::string> sideLines;
-        sideLines.push_back("");
+        // Prepare side panel lines (exactly 24 lines, 1:1 row match with 24 board lines)
+        std::vector<std::string> sideLines(24, "");
 
-        // Engine badge
+        // 0: Match Info header
+        sideLines[0] = "\033[1;36mMatch Info\033[0m";
+
+        // 1: Stockfish 17.1 (Elo) or Two-Player
         if (sfAvailable) {
-            sideLines.push_back("\033[32m●\033[0m \033[1mStockfish 17.1\033[0m \033[90m(Elo " + std::to_string(elo) + ")\033[0m");
+            sideLines[1] = "  \033[32m●\033[0m \033[1mStockfish 17.1\033[0m \033[90m(Elo " + std::to_string(elo) + ")\033[0m";
         } else {
-            sideLines.push_back("\033[33m○\033[0m \033[1mTwo-Player Mode\033[0m \033[90m(Engine offline)\033[0m");
+            sideLines[1] = "  \033[33m○\033[0m \033[1mTwo-Player Mode\033[0m \033[90m(Engine offline)\033[0m";
         }
 
-        // Side to move
+        // 2: Turn indicator (▶ White/Black to move + Check alert if inCheck)
         bool isWhiteTurn = (board.sideToMove() == chess::Color::WHITE);
-        std::string turnBadge = isWhiteTurn ? "\033[1;37m▶ White to move\033[0m" : "\033[1;33m▶ Black to move\033[0m";
+        std::string turnBadge = isWhiteTurn ? "  \033[1;37m▶ White to move\033[0m" : "  \033[1;33m▶ Black to move\033[0m";
         if (board.inCheck()) {
             turnBadge += " \033[1;31m[CHECK!]\033[0m";
         }
-        sideLines.push_back(turnBadge);
+        sideLines[2] = turnBadge;
 
-        // Evaluation meter
+        // 3: Divider
+        sideLines[3] = "\033[90m──────────────────────────────────────\033[0m";
+
+        // 4: Position Evaluation header
+        sideLines[4] = "\033[1;36mPosition Evaluation\033[0m";
+
+        // 5: Visual eval bar [████████░░░░░░░░] +0.2 (d16)
         if (currentEval.hasScore) {
             std::string evalStr;
             int filledBlocks = 8;
@@ -545,92 +556,137 @@ int run(int elo, int playerColor)
                 evalStr = "\033[1;32m" + ss.str() + "\033[0m";
                 filledBlocks = std::clamp(8 + static_cast<int>(std::round(pawns * 2.0)), 0, 16);
             }
-            std::string bar = "\033[37m[";
+            std::string bar = "  \033[37m[";
             for (int b = 0; b < 16; ++b) {
                 if (b < filledBlocks) bar += "\033[32m█";
                 else bar += "\033[90m░";
             }
             bar += "\033[37m]\033[0m " + evalStr + " \033[90m(d" + std::to_string(currentEval.depth) + ")\033[0m";
-            sideLines.push_back("Eval: " + bar);
-            if (!currentEval.bestMoveStr.empty()) {
-                sideLines.push_back("\033[90mBest move: \033[1;36m" + currentEval.bestMoveStr + "\033[0m");
-            } else {
-                sideLines.push_back("");
-            }
+            sideLines[5] = bar;
         } else {
-            sideLines.push_back("Eval: \033[90m[Press 'e' for evaluation]\033[0m");
-            sideLines.push_back("");
+            sideLines[5] = "  \033[90m[░░░░░░░░░░░░░░░░] (Press 'e' for eval)\033[0m";
         }
 
-        // Material Advantage / Captured pieces
+        // 6: Best move recommendation
+        if (!currentEval.bestMoveStr.empty()) {
+            sideLines[6] = "  \033[90mBest move: \033[1;36m" + currentEval.bestMoveStr + "\033[0m";
+        } else {
+            sideLines[6] = "  \033[90mBest move: -\033[0m";
+        }
+
+        // 7: Divider
+        sideLines[7] = "\033[90m──────────────────────────────────────\033[0m";
+
+        // 8: Captured Material header
+        sideLines[8] = "\033[1;36mCaptured Material\033[0m";
+
+        // 9: White captured list
         CapturedCount capt = computeCaptured(board);
-        std::string capWhite = "Capt: ";
-        for (int i = 0; i < capt.blackQueens; ++i) capWhite += "♛";
-        for (int i = 0; i < capt.blackRooks; ++i) capWhite += "♜";
-        for (int i = 0; i < capt.blackBishops; ++i) capWhite += "♝";
-        for (int i = 0; i < capt.blackKnights; ++i) capWhite += "♞";
-        for (int i = 0; i < capt.blackPawns; ++i) capWhite += "♟";
-        if (capt.materialDiff > 0) capWhite += " (+" + std::to_string(capt.materialDiff) + ")";
-        sideLines.push_back(capWhite);
+        std::string capWhite = "  \033[1mWhite:\033[0m ";
+        int countW = 0;
+        for (int i = 0; i < capt.blackQueens; ++i) { capWhite += "♛"; countW++; }
+        for (int i = 0; i < capt.blackRooks; ++i) { capWhite += "♜"; countW++; }
+        for (int i = 0; i < capt.blackBishops; ++i) { capWhite += "♝"; countW++; }
+        for (int i = 0; i < capt.blackKnights; ++i) { capWhite += "♞"; countW++; }
+        for (int i = 0; i < capt.blackPawns; ++i) { capWhite += "♟"; countW++; }
+        if (countW == 0) capWhite += "\033[90m(none)\033[0m";
+        sideLines[9] = capWhite;
 
-        std::string capBlack = "      ";
-        for (int i = 0; i < capt.whiteQueens; ++i) capBlack += "♕";
-        for (int i = 0; i < capt.whiteRooks; ++i) capBlack += "♖";
-        for (int i = 0; i < capt.whiteBishops; ++i) capBlack += "♗";
-        for (int i = 0; i < capt.whiteKnights; ++i) capBlack += "♘";
-        for (int i = 0; i < capt.whitePawns; ++i) capBlack += "♙";
-        if (capt.materialDiff < 0) capBlack += " (+" + std::to_string(-capt.materialDiff) + ")";
-        sideLines.push_back(capBlack);
+        // 10: Black captured list
+        std::string capBlack = "  \033[1mBlack:\033[0m ";
+        int countB = 0;
+        for (int i = 0; i < capt.whiteQueens; ++i) { capBlack += "♕"; countB++; }
+        for (int i = 0; i < capt.whiteRooks; ++i) { capBlack += "♖"; countB++; }
+        for (int i = 0; i < capt.whiteBishops; ++i) { capBlack += "♗"; countB++; }
+        for (int i = 0; i < capt.whiteKnights; ++i) { capBlack += "♘"; countB++; }
+        for (int i = 0; i < capt.whitePawns; ++i) { capBlack += "♙"; countB++; }
+        if (countB == 0) capBlack += "\033[90m(none)\033[0m";
+        sideLines[10] = capBlack;
 
-        sideLines.push_back("\033[90m───────────────────────────────────────\033[0m");
-        sideLines.push_back("\033[1mRecent Moves:\033[0m");
-
-        // Last moves history
-        int totalSan = static_cast<int>(sanHistory.size());
-        int startMoveIndex = std::max(0, totalSan - 6);
-        if (sanHistory.empty()) {
-            sideLines.push_back("\033[90m  (No moves yet)\033[0m");
+        // 11: Material diff score
+        if (capt.materialDiff > 0) {
+            sideLines[11] = "  \033[90mAdvantage: \033[1;32m+" + std::to_string(capt.materialDiff) + " White\033[0m";
+        } else if (capt.materialDiff < 0) {
+            sideLines[11] = "  \033[90mAdvantage: \033[1;33m+" + std::to_string(-capt.materialDiff) + " Black\033[0m";
         } else {
-            for (int m = startMoveIndex; m < totalSan; m += 2) {
-                int moveNum = (m / 2) + 1;
-                std::string line = "  " + std::to_string(moveNum) + ". " + sanHistory[m];
-                while (line.size() < 14) line += " ";
-                if (m + 1 < totalSan) {
-                    line += sanHistory[m + 1];
+            sideLines[11] = "  \033[90mAdvantage: \033[37mEven (0)\033[0m";
+        }
+
+        // 12: Divider
+        sideLines[12] = "\033[90m──────────────────────────────────────\033[0m";
+
+        // 13: Move History header
+        sideLines[13] = "\033[1;36mMove History\033[0m";
+
+        // 14..18: Last 5 turns formatted (e.g. 1. e4    e5)
+        int totalPly = static_cast<int>(sanHistory.size());
+        int totalTurns = (totalPly + 1) / 2;
+        int startTurn = std::max(0, totalTurns - 5);
+        if (totalTurns == 0) {
+            sideLines[14] = "  \033[90m(No moves yet)\033[0m";
+            sideLines[15] = "";
+            sideLines[16] = "";
+            sideLines[17] = "";
+            sideLines[18] = "";
+        } else {
+            for (int t = 0; t < 5; ++t) {
+                int turnNum = startTurn + t;
+                if (turnNum < totalTurns) {
+                    int wIdx = turnNum * 2;
+                    int bIdx = turnNum * 2 + 1;
+                    std::string turnStr = "  \033[90m" + std::to_string(turnNum + 1) + ".\033[0m " + sanHistory[wIdx];
+                    int currentLen = (turnNum + 1 >= 10 ? 2 : 1) + 2 + static_cast<int>(sanHistory[wIdx].size());
+                    while (currentLen < 12) {
+                        turnStr += " ";
+                        currentLen++;
+                    }
+                    if (bIdx < totalPly) {
+                        turnStr += sanHistory[bIdx];
+                    }
+                    sideLines[14 + t] = turnStr;
+                } else {
+                    sideLines[14 + t] = "";
                 }
-                sideLines.push_back(line);
             }
         }
 
-        while (sideLines.size() < 18) {
-            sideLines.push_back("");
-        }
+        // 19: Divider
+        sideLines[19] = "\033[90m──────────────────────────────────────\033[0m";
 
-        // File headers (a - h)
+        // 20: Quick Controls header
+        sideLines[20] = "\033[1;36mQuick Controls\033[0m";
+
+        // 21: Mouse / Keyboard movement info
+        sideLines[21] = "  \033[90m[Click / Enter]\033[0m Move  \033[90m[Arrows/WASD]\033[0m Aim";
+
+        // 22: [u] Undo  [f] Flip  [e] Eval
+        sideLines[22] = "  \033[1;33m[u]\033[0m Undo   \033[1;33m[f]\033[0m Flip   \033[1;33m[e]\033[0m Eval";
+
+        // 23: [/] SAN   [r] Reset [q] Quit
+        sideLines[23] = "  \033[1;33m[/]\033[0m SAN    \033[1;33m[r]\033[0m Reset  \033[1;33m[q]\033[0m Quit";
+
+        // File headers (a - h) top (strictly 6 display columns per file, 5 spaces margin)
         out += "     ";
         for (int c = 0; c < 8; ++c) {
             int file = flipped ? (7 - c) : c;
             char fileChar = 'a' + file;
-            out += " ";
-            out += fileChar;
-            out += "  ";
+            out += "  \033[90m" + std::string(1, fileChar) + "\033[0m   ";
         }
-        out += "   ";
-        if (!sideLines.empty()) out += sideLines[0];
-        out += "\033[K\r\n";
+        out += "     \033[90m│\033[0m\033[K\r\n";
 
-        // Board rendering: 8 ranks, 2 lines per rank = 16 lines
+        // Board rendering: 8 ranks, 3 lines per rank = 24 lines
         for (int displayRank = 0; displayRank < 8; ++displayRank) {
             int rank = flipped ? displayRank : (7 - displayRank);
 
-            for (int subLine = 0; subLine < 2; ++subLine) {
-                // Rank coordinate on left (on line 0)
-                if (subLine == 0) {
+            for (int subLine = 0; subLine < 3; ++subLine) {
+                // Left rank coordinate (5 display columns)
+                if (subLine == 1) {
                     out += "  \033[90m" + std::to_string(rank + 1) + "\033[0m  ";
                 } else {
                     out += "     ";
                 }
 
+                // 8 squares across (6 display columns each = 48 display columns)
                 for (int displayFile = 0; displayFile < 8; ++displayFile) {
                     int file = flipped ? (7 - displayFile) : displayFile;
                     int sqIndex = rank * 8 + file;
@@ -640,6 +696,7 @@ int run(int elo, int playerColor)
                     bool isCursor = (file == cursorFile && rank == cursorRank);
                     bool isLastMove = (lastFrom != chess::Square::underlying::NO_SQ &&
                                       (chess::Square(sqIndex) == lastFrom || chess::Square(sqIndex) == lastTo));
+                    bool isInCheckKing = (board.inCheck() && chess::Square(sqIndex) == board.kingSq(board.sideToMove()));
 
                     bool isLegalTarget = false;
                     for (const auto &lm : legalFromSelected) {
@@ -655,25 +712,27 @@ int run(int elo, int playerColor)
                     // Background color determination (24-bit TrueColor)
                     std::string bg;
                     if (isSelected) {
-                        bg = "\033[48;2;246;246;105m"; // Golden yellow highlight
+                        bg = "\033[48;2;246;246;105m"; // Amber Gold
+                    } else if (isInCheckKing) {
+                        bg = "\033[48;2;230;60;60m";   // Scarlet Red
                     } else if (isCaptureTarget) {
-                        bg = "\033[48;2;200;75;75m"; // Vivid red capture target
+                        bg = "\033[48;2;215;75;75m";   // Crimson
                     } else if (isLegalTarget) {
-                        bg = "\033[48;2;135;160;105m"; // Subtle green target
+                        bg = "\033[48;2;135;160;105m"; // Soft Green
                     } else if (isLastMove) {
-                        bg = "\033[48;2;205;210;106m"; // Olive amber last move
+                        bg = "\033[48;2;205;210;106m"; // Subtle Amber
                     } else if (isLight) {
-                        bg = "\033[48;2;240;217;181m"; // Warm cream wood light tile
+                        bg = "\033[48;2;240;217;181m"; // Warm Cream
                     } else {
-                        bg = "\033[48;2;181;136;99m";  // Rich walnut dark tile
+                        bg = "\033[48;2;181;136;99m";  // Rich Walnut
                     }
 
                     // Piece glyph and color
                     std::string pieceGlyph = " ";
-                    std::string fg = "\033[38;2;255;255;255;1m"; // White pieces
+                    std::string fg = "\033[38;2;255;255;255;1m"; // Porcelain White
                     if (piece != chess::Piece::NONE) {
                         if (piece.color() == chess::Color::WHITE) {
-                            fg = "\033[38;2;255;255;255;1m"; // Bright porcelain white
+                            fg = "\033[38;2;255;255;255;1m"; // Porcelain White
                             if (piece.type() == chess::PieceType::PAWN) pieceGlyph = "♙";
                             else if (piece.type() == chess::PieceType::KNIGHT) pieceGlyph = "♘";
                             else if (piece.type() == chess::PieceType::BISHOP) pieceGlyph = "♗";
@@ -681,7 +740,7 @@ int run(int elo, int playerColor)
                             else if (piece.type() == chess::PieceType::QUEEN) pieceGlyph = "♕";
                             else if (piece.type() == chess::PieceType::KING) pieceGlyph = "♔";
                         } else {
-                            fg = "\033[38;2;20;20;20;1m"; // Deep obsidian black
+                            fg = "\033[38;2;25;25;25;1m"; // Obsidian Black
                             if (piece.type() == chess::PieceType::PAWN) pieceGlyph = "♟";
                             else if (piece.type() == chess::PieceType::KNIGHT) pieceGlyph = "♞";
                             else if (piece.type() == chess::PieceType::BISHOP) pieceGlyph = "♝";
@@ -689,62 +748,90 @@ int run(int elo, int playerColor)
                             else if (piece.type() == chess::PieceType::QUEEN) pieceGlyph = "♛";
                             else if (piece.type() == chess::PieceType::KING) pieceGlyph = "♚";
                         }
-                    } else if (isLegalTarget && subLine == 1) {
-                        pieceGlyph = "•";
-                        fg = "\033[38;2;40;40;40;1m";
                     }
 
-                    // Render square (4 characters wide)
-                    out += bg;
-                    if (subLine == 0) {
-                        // Top line of square: cursor brackets or empty
-                        if (isCursor) {
-                            out += "\033[1;36m┌──┐\033[0m" + bg;
-                        } else {
-                            out += "    ";
+                    // Render square (strictly 6 display columns)
+                    if (isCursor) {
+                        if (subLine == 0) {
+                            out += bg + "\033[1;36m┌────┐\033[0m";
+                        } else if (subLine == 1) {
+                            out += bg + "\033[1;36m│\033[0m";
+                            if (piece == chess::Piece::NONE) {
+                                if (isLegalTarget) {
+                                    if (pieceGlyphWidth == 1) {
+                                        out += bg + " \033[38;2;40;40;40;1m•\033[0m" + bg + "  ";
+                                    } else {
+                                        out += bg + " \033[38;2;40;40;40;1m•\033[0m" + bg + " ";
+                                    }
+                                } else {
+                                    out += bg + "    ";
+                                }
+                            } else {
+                                if (pieceGlyphWidth == 1) {
+                                    out += bg + " " + fg + pieceGlyph + "\033[0m" + bg + "  ";
+                                } else {
+                                    out += bg + " " + fg + pieceGlyph + "\033[0m" + bg + " ";
+                                }
+                            }
+                            out += bg + "\033[1;36m│\033[0m";
+                        } else { // subLine == 2
+                            out += bg + "\033[1;36m└────┘\033[0m";
                         }
                     } else {
-                        // Bottom line with piece glyph
-                        if (isCursor) {
-                            out += "\033[1;36m│\033[0m" + bg + fg + pieceGlyph + "\033[0m" + bg + " \033[1;36m│\033[0m";
-                        } else {
-                            out += " " + fg + pieceGlyph + "\033[0m" + bg + "  ";
+                        if (subLine == 0 || subLine == 2) {
+                            out += bg + "      \033[0m";
+                        } else { // subLine == 1
+                            if (piece == chess::Piece::NONE) {
+                                if (isLegalTarget) {
+                                    if (pieceGlyphWidth == 1) {
+                                        out += bg + "  \033[38;2;40;40;40;1m•\033[0m" + bg + "   \033[0m";
+                                    } else {
+                                        out += bg + "  \033[38;2;40;40;40;1m•\033[0m" + bg + "  \033[0m";
+                                    }
+                                } else {
+                                    out += bg + "      \033[0m";
+                                }
+                            } else {
+                                if (pieceGlyphWidth == 1) {
+                                    out += bg + "  " + fg + pieceGlyph + "\033[0m" + bg + "   \033[0m";
+                                } else {
+                                    out += bg + "  " + fg + pieceGlyph + "\033[0m" + bg + "  \033[0m";
+                                }
+                            }
                         }
                     }
-                    out += "\033[0m";
                 }
 
-                // Rank coordinate on right
-                if (subLine == 0) {
-                    out += "  \033[90m" + std::to_string(rank + 1) + "\033[0m";
+                // Right rank coordinate (5 display columns)
+                if (subLine == 1) {
+                    out += "  \033[90m" + std::to_string(rank + 1) + "\033[0m  ";
                 } else {
                     out += "     ";
                 }
 
-                // Side panel lines
-                int sideIdx = displayRank * 2 + subLine + 1;
+                // Separator and Side panel (1:1 row match)
+                out += "\033[90m│ \033[0m";
+                int sideIdx = displayRank * 3 + subLine;
                 if (sideIdx < static_cast<int>(sideLines.size())) {
-                    out += "  " + sideLines[sideIdx];
+                    out += sideLines[sideIdx];
                 }
                 out += "\033[K\r\n";
             }
         }
 
-        // File headers (a - h) bottom
+        // File headers (a - h) bottom (strictly 6 display columns per file, 5 spaces margin)
         out += "     ";
         for (int c = 0; c < 8; ++c) {
             int file = flipped ? (7 - c) : c;
             char fileChar = 'a' + file;
-            out += " ";
-            out += fileChar;
-            out += "  ";
+            out += "  \033[90m" + std::string(1, fileChar) + "\033[0m   ";
         }
-        out += "\033[K\r\n";
+        out += "     \033[90m│\033[0m\033[K\r\n";
 
         // Status message bar
-        out += "\033[90m" + repeatStr("─", std::min(termCols, 78)) + "\033[0m\033[K\r\n";
+        out += "\033[90m" + repeatStr("─", std::min(termCols, 98)) + "\033[0m\033[K\r\n";
         out += " \033[1mStatus:\033[0m " + statusMessage + "\033[K\r\n";
-        out += " \033[90m[🖱 Click/Enter] Move  [Arrows/WASD] Cursor  [u] Undo  [f] Flip  [e] Eval  [/] SAN  [?] Help  [q] Quit\033[0m\033[K\r\n";
+        out += " \033[90m[🖱 Click/Enter] Move  [Arrows/WASD] Cursor  [u] Undo  [f] Flip  [e] Eval  [/] SAN  [p] Width  [?] Help  [q] Quit\033[0m\033[K\r\n";
         out += "\033[J";
 
         // Flush buffer
@@ -775,7 +862,7 @@ int run(int elo, int playerColor)
 
         if (!isHumanTurn && sfAvailable && result == chess::GameResult::NONE) {
             statusMessage = "\033[1;33mStockfish is thinking...\033[0m";
-            std::cout << "\033[22;1H \033[1mStatus:\033[0m " << statusMessage << "\033[K" << std::flush;
+            std::cout << "\033[30;1H \033[1mStatus:\033[0m " << statusMessage << "\033[K" << std::flush;
 
             EvalInfo engineMove = queryStockfishEval(stockfish, board, 1000);
             chess::Move finalMove = chess::Move::NO_MOVE;
@@ -840,6 +927,13 @@ int run(int elo, int playerColor)
             continue;
         }
 
+        // Handle Piece Width Toggle
+        if (ev.type == KEY_CHAR && (ev.ch == 'p' || ev.ch == 'P')) {
+            pieceGlyphWidth = (pieceGlyphWidth == 1) ? 2 : 1;
+            statusMessage = (pieceGlyphWidth == 2) ? "Piece width set to 2 columns." : "Piece width set to 1 column.";
+            continue;
+        }
+
         // Handle Undo
         if (ev.type == KEY_CHAR && (ev.ch == 'u' || ev.ch == 'U')) {
             if (!history.empty()) {
@@ -883,7 +977,7 @@ int run(int elo, int playerColor)
         if (ev.type == KEY_CHAR && (ev.ch == 'e' || ev.ch == 'E')) {
             if (sfAvailable) {
                 statusMessage = "\033[1;33mEvaluating position...\033[0m";
-                std::cout << "\033[22;1H \033[1mStatus:\033[0m " << statusMessage << "\033[K" << std::flush;
+                std::cout << "\033[30;1H \033[1mStatus:\033[0m " << statusMessage << "\033[K" << std::flush;
                 currentEval = queryStockfishEval(stockfish, board, 1200);
                 statusMessage = "Evaluated! Best move: \033[1;36m" + currentEval.bestMoveStr + "\033[0m";
             } else {
@@ -896,7 +990,7 @@ int run(int elo, int playerColor)
         if (ev.type == KEY_CHAR && (ev.ch == '/' || ev.ch == ':')) {
             // Restore normal cursor for typing
             std::cout << "\033[?25h";
-            std::cout << "\033[22;1H\033[K \033[1;36mSAN/Command > \033[0m" << std::flush;
+            std::cout << "\033[30;1H\033[K \033[1;36mSAN/Command > \033[0m" << std::flush;
 
             // Switch to canonical reading for single line
             struct termios textTermios = s_origTermios;
