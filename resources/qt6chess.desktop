@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Qt6Chess
+Comment=Modern High-Performance Native Qt6 Chess Application
+Exec=Qt6Chess
+Icon=qt6chess
+Terminal=false
+Type=Application
+Categories=Game;BoardGame;
+Keywords=chess;game;stockfish;board;qt6;

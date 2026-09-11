@@ -28,3 +28,10 @@ compile_commands.json
 # Testing
 Testing/
 *.log
+
+# Releases and packages
+*.pkg.tar.zst
+*.tar.gz
+pkg/
+src-arch/
+

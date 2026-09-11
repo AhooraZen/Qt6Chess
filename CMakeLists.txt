@@ -98,3 +98,15 @@ target_precompile_headers(Qt6Chess PRIVATE
 # Automated unit tests
 enable_testing()
 add_subdirectory(tests)
+
+# Installation targets
+install(TARGETS Qt6Chess
+    RUNTIME DESTINATION bin
+)
+install(FILES resources/qt6chess.desktop
+    DESTINATION share/applications
+)
+install(FILES resources/icons/qt6chess.svg
+    DESTINATION share/icons/hicolor/scalable/apps
+)
+
