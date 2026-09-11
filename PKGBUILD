@@ -1,6 +1,6 @@
 # Maintainer: AhooraZen <https://github.com/AhooraZen>
 pkgname=qt6chess
-pkgver=1.0.4
+pkgver=1.0.5
 pkgrel=1
 
 pkgdesc="Modern high-performance native Qt6 chess application with Stockfish 17.1 and ANSI TUI"
@@ -46,4 +46,3 @@ package() {
     ln -sf Qt6Chess "$pkgdir/usr/bin/qt6chess"
     install -Dm644 "$srcdir/Qt6Chess-$pkgver/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
-
