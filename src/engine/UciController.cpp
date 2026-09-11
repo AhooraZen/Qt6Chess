@@ -22,19 +22,27 @@ bool UciController::isRunning() const
     return m_process && m_process->state() == QProcess::Running;
 }
 
+#include <QStandardPaths>
+
 QString UciController::findDefaultEnginePath() const
 {
-    QStringList candidates = {
-        QStringLiteral("/usr/games/stockfish"),
+    QString inPath = QStandardPaths::findExecutable(QStringLiteral("stockfish"));
+    if (!inPath.isEmpty())
+        return inPath;
+
+    const QStringList candidates = {
         QStringLiteral("/usr/bin/stockfish"),
-        QStringLiteral("/usr/local/bin/stockfish")
+        QStringLiteral("/usr/games/stockfish"),
+        QStringLiteral("/usr/local/bin/stockfish"),
+        QStringLiteral("/opt/stockfish/stockfish")
     };
     for (const QString &path : candidates) {
         if (QFile::exists(path))
             return path;
     }
-    return QStringLiteral("stockfish");
+    return QString();
 }
+
 
 bool UciController::startEngine(const QString &customPath)
 {

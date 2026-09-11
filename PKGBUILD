@@ -11,7 +11,9 @@ depends=(
     'qt6-declarative'
     'qt6-svg'
     'qt6-multimedia'
-    'stockfish'
+)
+optdepends=(
+    'stockfish: AI opponent and live UCI position evaluation'
 )
 makedepends=(
     'cmake'
