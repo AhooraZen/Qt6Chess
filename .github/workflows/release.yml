@@ -24,7 +24,7 @@ jobs:
             -w /workspace \
             archlinux:latest \
             bash -euxc '
-              pacman -Syu --noconfirm base-devel git cmake ninja qt6-base qt6-declarative qt6-svg qt6-multimedia stockfish
+              pacman -Syu --noconfirm base-devel git cmake ninja qt6-base qt6-declarative qt6-svg qt6-multimedia
               useradd -m -s /bin/bash builder
               echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
               PKGVER="${GITHUB_REF_NAME#v}"
