@@ -16,8 +16,12 @@ GameController::GameController(QObject *parent)
     connect(m_uci, &UciController::bestMoveFound, this, &GameController::onAiBestMoveFound);
     connect(m_clock, &ChessClock::timeOut, this, &GameController::onClockTimeOut);
 
+
+    m_uci->startEngine();
     updateBoardView();
+    updateEnginePosition();
 }
+
 
 QString GameController::activeColor() const
 {

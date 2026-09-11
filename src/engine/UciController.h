@@ -84,7 +84,9 @@ private:
     qint64 m_nps = 0;
     int m_multiPv = 2;
     QString m_engineName = QStringLiteral("Stockfish");
+    QString m_currentPositionCmd;
     QMap<int, EngineLine> m_lines;
+
 
     void sendCommand(const QString &cmd);
     void parseLine(const QString &line);

@@ -59,9 +59,13 @@ bool UciController::startEngine(const QString &customPath)
     sendCommand(QStringLiteral("uci"));
     sendCommand(QStringLiteral("setoption name MultiPV value 2"));
     sendCommand(QStringLiteral("isready"));
+    if (!m_currentPositionCmd.isEmpty()) {
+        sendCommand(m_currentPositionCmd);
+    }
 
     emit runningChanged();
     return true;
+
 }
 
 void UciController::stopEngine()
@@ -114,7 +118,12 @@ void UciController::setPosition(const QString &fen, const QStringList &moves)
     if (!moves.isEmpty()) {
         cmd += QStringLiteral(" moves ") + moves.join(" ");
     }
-    sendCommand(cmd);
+    m_currentPositionCmd = cmd;
+    if (!isRunning()) {
+        startEngine();
+    } else {
+        sendCommand(cmd);
+    }
 }
 
 void UciController::startInfiniteAnalysis()
@@ -123,6 +132,9 @@ void UciController::startInfiniteAnalysis()
         if (!startEngine()) return;
     }
     sendCommand(QStringLiteral("stop"));
+    if (!m_currentPositionCmd.isEmpty()) {
+        sendCommand(m_currentPositionCmd);
+    }
     sendCommand(QStringLiteral("go infinite"));
     m_isAnalyzing = true;
     emit analyzingChanged();
@@ -144,8 +156,12 @@ void UciController::searchBestMove(int moveTimeMs, int depthLimit)
         if (!startEngine()) return;
     }
     sendCommand(QStringLiteral("stop"));
+    if (!m_currentPositionCmd.isEmpty()) {
+        sendCommand(m_currentPositionCmd);
+    }
     sendCommand(QString("go movetime %1").arg(moveTimeMs));
 }
+
 
 
 void UciController::onReadyReadStandardOutput()
