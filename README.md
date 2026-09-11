@@ -88,13 +88,9 @@ ctest --test-dir build --output-on-failure
 ```
 
 *(Optional) Install Stockfish for engine play and analysis:*
-```bash
-# Arch Linux
-sudo pacman -S stockfish
-
-# Debian / Ubuntu
-sudo apt install stockfish
-```
+- **Arch Linux (AUR)**: `yay -S stockfish` (or `paru -S stockfish`)
+- **Debian / Ubuntu**: `sudo apt install stockfish`
+- **Windows**: Download [Stockfish](https://stockfishchess.org/download/) and place `stockfish.exe` next to `Qt6Chess.exe` (or add to `PATH`).
 
 ---
 
@@ -135,12 +131,9 @@ qt6chess --cli
 
 ---
 
-## Support & Coffee
-
-If this little project saved you some RAM or you had fun playing chess in your terminal, feel free to give it a ⭐ or buy me a coffee:
-
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Donate-yellow?style=flat-square&logo=buy-me-a-coffee)](https://buymeacoffee.com/ahoora)
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?style=flat-square&logo=kofi)](https://ko-fi.com/ahoora)
+## Support ⭐
+ 
+If this project saved you some RAM or you enjoyed playing chess in your terminal, consider giving the repository a star!
 
 ---
 
